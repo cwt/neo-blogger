@@ -5,7 +5,7 @@ hex-string form (§5.1 ID policy) and is absent on documents not yet saved.
 """
 
 from collections.abc import Mapping
-from typing import Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 type ArticleStatus = Literal["draft", "published"]
 
@@ -63,3 +63,14 @@ def document_id(document: Mapping[str, object]) -> str:
     if identifier is None:
         raise KeyError("document has no _id")
     return str(identifier)
+
+
+def normalized_document(
+    document: Mapping[str, Any], boolean_fields: tuple[str, ...]
+) -> dict[str, Any]:
+    """Apply both boundary policies: hex-string ``_id`` and ``bool`` fields (§5.1)."""
+    normalized: dict[str, Any] = dict(document)
+    normalized["_id"] = document_id(document)
+    for field in boolean_fields:
+        normalized[field] = bool(normalized.get(field, False))
+    return normalized
