@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Upload image · {{ site_title }}{% endblock %}
+{% block content %}
+<h1>Upload image</h1>
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
+  <label for="image">Image file</label>
+  <input id="image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp,.gif" required>
+  <button type="submit">Upload</button>
+</form>
+<section class="gallery">
+  {% for image in images %}
+  <article class="gallery-item">
+    <img src="/images/{{ image.id }}.webp" alt="{{ image.metadata.alt_text }}" width="320" height="180" loading="lazy">
+    <p class="meta">
+      <code>/images/{{ image.id }}.webp</code>
+      {% if admin_view %}· owner {{ image.metadata.owner }}{% endif %}
+    </p>
+    <form method="post" action="/images/{{ image.id }}/alt" class="inline-form">
+      <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
+      <label for="alt-{{ image.id }}">Alt text</label>
+      <input id="alt-{{ image.id }}" name="alt_text" value="{{ image.metadata.alt_text }}">
+      <button type="submit">Save</button>
+    </form>
+    <form method="post" action="/images/{{ image.id }}/delete" class="inline-form">
+      <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
+      <button type="submit" class="link-button">Delete</button>
+    </form>
+  </article>
+  {% else %}
+  <p>No images uploaded yet.</p>
+  {% endfor %}
+</section>
+<nav class="pagination" aria-label="Pagination">
+  {% if page > 1 %}<a href="/upload?page={{ page - 1 }}">Previous</a>{% endif %}
+  {% if has_more %}<a href="/upload?page={{ page + 1 }}">Next</a>{% endif %}
+</nav>
+{% endblock %}

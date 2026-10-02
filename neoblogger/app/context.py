@@ -1,6 +1,10 @@
 """Per-application context (tech-req §3.4): assembled repositories and services."""
 
+import asyncio
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from typing import Any, TypeVar
 
 from .config import RuntimeConfig
 from .repositories.articles import ArticleRepository
@@ -14,9 +18,25 @@ from .services.accounts import AccountService
 from .services.articles import ArticleService
 from .services.auth import AuthService
 from .services.comments import CommentService
+from .services.objects import ObjectsService
 from .services.visibility import ArticleVisibility
 
 __all__ = ["AppContext"]
+
+
+T = TypeVar("T")
+
+
+def _image_runner(
+    executor: ThreadPoolExecutor,
+) -> Callable[[Callable[[], T]], Any]:
+    """An async runner for the image executor (§5.6)."""
+
+    async def run(work: Callable[[], T]) -> T:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(executor, work)
+
+    return run
 
 
 @dataclass(slots=True)
@@ -36,6 +56,18 @@ class AppContext:
     visibility: ArticleVisibility
     article_service: ArticleService
     comment_service: CommentService
+    objects_service: ObjectsService
+    image_executor: ThreadPoolExecutor
+
+    async def run_image(self, work: Callable[[], T]) -> T:
+        """Offload CPU-bound Pillow work to the image executor (§5.6)."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self.image_executor, work)
+
+    async def close(self) -> None:
+        """Stop executors; used by tests and graceful shutdown."""
+        await self.database.close()
+        self.image_executor.shutdown(wait=True)
 
     @classmethod
     def build(cls, config: RuntimeConfig) -> AppContext:
@@ -51,6 +83,15 @@ class AppContext:
         accounts = AccountService(members, comments, visibility)
         article_service = ArticleService(articles, members, meta, visibility)
         comment_service = CommentService(comments, articles, meta)
+        image_executor = ThreadPoolExecutor(
+            max_workers=2, thread_name_prefix="neoblogger-image"
+        )
+        objects_service = ObjectsService(
+            objects,
+            articles,
+            _image_runner(image_executor),
+            config.uploads.max_body_bytes,
+        )
         return cls(
             config=config,
             database=database,
@@ -65,4 +106,6 @@ class AppContext:
             visibility=visibility,
             article_service=article_service,
             comment_service=comment_service,
+            objects_service=objects_service,
+            image_executor=image_executor,
         )

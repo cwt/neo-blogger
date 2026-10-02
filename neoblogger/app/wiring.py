@@ -15,6 +15,7 @@ from quart import Quart, Response, abort, g, render_template, request
 from .blueprints.auth import create_auth_blueprint
 from .blueprints.blog import HexIdConverter, create_blog_blueprint
 from .blueprints.discovery import create_discovery_blueprint
+from .blueprints.images import create_images_blueprint
 from .blueprints.profile import create_profile_blueprint
 from .context import AppContext
 from .security.csrf import tokens_match
@@ -85,6 +86,7 @@ def assemble(app: Quart, context: AppContext) -> None:
     app.register_blueprint(create_blog_blueprint(context))
     app.register_blueprint(create_profile_blueprint(context))
     app.register_blueprint(create_discovery_blueprint(context))
+    app.register_blueprint(create_images_blueprint(context))
 
     caching = context.config.caching
     cache = ResponseCache(
@@ -176,7 +178,8 @@ def assemble(app: Quart, context: AppContext) -> None:
             response.delete_cookie(_COOKIE_NAME)
         elif member is not None and session is not None:
             _set_session_cookie(response, context.auth.refresh(session), secure=secure)
-            response.headers["Cache-Control"] = "no-store"
+            if "text/html" in response.headers.get("Content-Type", ""):
+                response.headers["Cache-Control"] = "no-store"
         elif getattr(g, "set_session_cookie", None):
             _set_session_cookie(response, g.set_session_cookie, secure=secure)
         if request.path.startswith("/search") or request.path.startswith("/tag/"):

@@ -24,6 +24,8 @@ def build_app(config: RuntimeConfig) -> Quart:
     # an ephemeral one. The session cookie itself is the signed cookie in
     # security.sessions (Appendix B D4), not this.
     app.secret_key = config.application.secret_key or secrets.token_hex(32)
+    # Server-level request-body cap for uploads (spec §10.2, §15.6).
+    app.config["MAX_CONTENT_LENGTH"] = config.uploads.max_body_bytes
     assemble(app, context)
 
     @app.get("/healthz")
