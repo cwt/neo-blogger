@@ -1,0 +1,33 @@
+# Python
+syntax: glob
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Databases (spike artifacts + runtime DB files)
+*.db
+*.db-wal
+*.db-shm
+
+# Response file-cache directory (tech-req §14)
+cache/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
