@@ -25,7 +25,13 @@ class MemberDocument(TypedDict):
 
 
 class ArticleDocument(TypedDict):
-    """An article in lightweight markup (spec §12.1)."""
+    """An article in lightweight markup (spec §12.1).
+
+    ``author_active``/``author_publisher`` are denormalized visibility
+    snapshots (§13) kept coherent by role-change resync and a startup
+    backfill; they let feed/search filters run as single-round-trip
+    indexed matches (spec §14).
+    """
 
     _id: NotRequired[str]
     title: str
@@ -36,16 +42,22 @@ class ArticleDocument(TypedDict):
     created: str
     tags: list[str]
     status: ArticleStatus
+    author_active: bool
+    author_publisher: bool
 
 
 class CommentDocument(TypedDict):
-    """A comment attached to an article by reference (spec §12.1)."""
+    """A comment attached to an article by reference (spec §12.1).
+
+    ``author_active`` is the denormalized visibility snapshot (§7).
+    """
 
     _id: NotRequired[str]
     text: str
     author: str
     article_id: str
     created: str
+    author_active: bool
 
 
 class MetaDocument(TypedDict):

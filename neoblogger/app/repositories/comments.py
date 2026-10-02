@@ -21,7 +21,13 @@ class CommentRepository:
         self._database = database
 
     async def create(
-        self, text: str, author: str, article_id: str, created: str
+        self,
+        text: str,
+        author: str,
+        article_id: str,
+        created: str,
+        *,
+        author_active: bool = True,
     ) -> str:
         """Insert a comment; linkage is a hex string (S2 ID policy)."""
 
@@ -32,11 +38,22 @@ class CommentRepository:
                     "author": author,
                     "article_id": article_id,
                     "created": created,
+                    "author_active": author_active,
                 }
             )
             return str(result.inserted_id)
 
         return await self._database.run(insert)
+
+    async def resync_author_active(self, author: str, active: bool) -> None:
+        """Resync comment snapshots after account state changes (§11.2)."""
+
+        def update_document() -> None:
+            self._database.connection.comments.update_many(
+                {"author": author}, {"$set": {"author_active": active}}
+            )
+
+        await self._database.run(update_document)
 
     async def delete(self, comment_id: str) -> None:
         """Delete one comment (§7); the article id is not needed (D6)."""

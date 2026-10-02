@@ -1,0 +1,168 @@
+"""Service tests: visibility rules and account workflows (spec §2, §4, §13)."""
+
+from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from neoblogger.app.config import DatabaseConfig
+from neoblogger.app.repositories.articles import ArticleRepository
+from neoblogger.app.repositories.comments import CommentRepository
+from neoblogger.app.repositories.db import Database
+from neoblogger.app.repositories.members import MemberRepository
+from neoblogger.app.repositories.meta import MetaRepository
+from neoblogger.app.services.accounts import AccountDisabledError, AccountService
+from neoblogger.app.services.visibility import (
+    ArticleVisibility,
+    feed_filter,
+    tag_filter,
+)
+
+
+@pytest.fixture
+async def database(tmp_path: Path) -> AsyncIterator[Database]:
+    database = Database(DatabaseConfig(path=str(tmp_path / "svc.db")))
+    await database.start()
+    yield database
+    await database.close()
+
+
+@pytest.fixture
+def services(database: Database) -> dict[str, Any]:
+    members = MemberRepository(database)
+    comments = CommentRepository(database)
+    articles = ArticleRepository(database)
+    visibility = ArticleVisibility(members, articles, comments)
+    accounts = AccountService(members, comments, visibility)
+    meta = MetaRepository(database)
+    return {
+        "members": members,
+        "articles": articles,
+        "comments": comments,
+        "visibility": visibility,
+        "accounts": accounts,
+        "meta": meta,
+    }
+
+
+def test_public_feed_filter_shape() -> None:
+    viewer_filter = feed_filter(None)
+    assert viewer_filter == {
+        "status": "published",
+        "author_active": True,
+        "author_publisher": True,
+    }
+
+
+def test_admin_feed_filter_broader() -> None:
+    admin: dict[str, Any] = {
+        "_id": "a",
+        "display_name": "root",
+        "email": "r@x.io",
+        "password_hash": "h",
+        "security_question_code": "first-pet",
+        "security_answer_hash": "h",
+        "active": True,
+        "administrator": True,
+        "publisher": True,
+    }
+    assert feed_filter(admin) == {"status": "published"}
+
+
+def test_tag_filter_scopes() -> None:
+    admin: dict[str, Any] = {
+        "_id": "a",
+        "display_name": "root",
+        "email": "r@x.io",
+        "password_hash": "h",
+        "security_question_code": "first-pet",
+        "security_answer_hash": "h",
+        "active": True,
+        "administrator": True,
+        "publisher": True,
+    }
+    admin_tagged = tag_filter(admin, "python")
+    assert "status" not in admin_tagged["$and"][0]
+    assert admin_tagged["$and"][1] == {"tags": "python"}
+
+
+async def test_first_member_becomes_admin_and_publisher(
+    services: dict[str, Any],
+) -> None:
+    accounts: AccountService = services["accounts"]
+    first_id, promoted = await accounts.register(
+        "root", "root@x.io", "pw", "first-pet", "City"
+    )
+    assert promoted is True
+    member = await services["members"].by_id(first_id)
+    assert member is not None
+    assert member["administrator"] is True
+    assert member["publisher"] is True
+    second_id, promoted_second = await accounts.register(
+        "user", "user@x.io", "pw", "first-pet", "Town"
+    )
+    assert promoted_second is False
+    second = await services["members"].by_id(second_id)
+    assert second is not None
+    assert second["administrator"] is False
+
+
+async def test_register_rejects_duplicate_email(
+    services: dict[str, Any],
+) -> None:
+    from neoblogger.app.repositories.members import MemberAlreadyExistsError
+
+    accounts: AccountService = services["accounts"]
+    await accounts.register("root", "root@x.io", "pw", "first-pet", "City")
+    with pytest.raises(MemberAlreadyExistsError):
+        await accounts.register("twin", "root@x.io", "pw", "first-pet", "City")
+
+
+async def test_authenticate_paths(services: dict[str, Any]) -> None:
+    accounts: AccountService = services["accounts"]
+    await accounts.register("root", "root@x.io", "pw", "first-pet", "City")
+    member = await accounts.authenticate("root@x.io", "pw")
+    assert member is not None
+    assert member["display_name"] == "root"
+    assert await accounts.authenticate("root@x.io", "wrong") is None
+    assert await accounts.authenticate("ghost@x.io", "pw") is None
+
+
+async def test_disabled_account_refused(services: dict[str, Any]) -> None:
+    accounts: AccountService = services["accounts"]
+    members: MemberRepository = services["members"]
+    member_id, _ = await accounts.register(
+        "root", "root@x.io", "pw", "first-pet", "City"
+    )
+    await members.set_active(member_id, False)
+    with pytest.raises(AccountDisabledError):
+        await accounts.authenticate("root@x.io", "pw")
+    with pytest.raises(AccountDisabledError):
+        await accounts.recover("root@x.io", "city", "new")
+
+
+async def test_recovery_flow(services: dict[str, Any]) -> None:
+    accounts: AccountService = services["accounts"]
+    await accounts.register("root", "root@x.io", "pw", "first-pet", "Snowball")
+    assert await accounts.recover("root@x.io", "snowball", "newpw") is True
+    member = await accounts.authenticate("root@x.io", "newpw")
+    assert member is not None
+    assert await accounts.recover("root@x.io", "wrong", "x") is False
+    assert await accounts.recover("ghost@x.io", "x", "y") is False
+
+
+async def test_profile_statistics(services: dict[str, Any]) -> None:
+    accounts: AccountService = services["accounts"]
+    member_id, _ = await accounts.register(
+        "root", "root@x.io", "pw", "first-pet", "City"
+    )
+    member = await services["members"].by_id(member_id)
+    assert member is not None
+    stats = await accounts.profile_statistics(member)
+    assert stats == {
+        "published": 0,
+        "drafts": 0,
+        "comments_written": 0,
+        "contributions": 0,
+    }

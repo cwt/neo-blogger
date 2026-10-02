@@ -62,6 +62,9 @@ class ArticleRepository:
         created: str,
         tags: list[str],
         status: str,
+        *,
+        author_active: bool = False,
+        author_publisher: bool = False,
     ) -> str:
         def insert() -> str:
             result = self._database.connection.articles.insert_one(
@@ -74,11 +77,37 @@ class ArticleRepository:
                     "created": created,
                     "tags": tags,
                     "status": status,
+                    "author_active": author_active,
+                    "author_publisher": author_publisher,
                 }
             )
             return str(result.inserted_id)
 
         return await self._database.run(insert)
+
+    async def delete_many(self, query_filter: dict[str, Any]) -> None:
+        def remove() -> None:
+            self._database.connection.articles.delete_many(query_filter)
+
+        await self._database.run(remove)
+
+    async def update_many_snapshots(
+        self, author: str, *, author_active: bool, author_publisher: bool
+    ) -> None:
+        """Resync denormalized author snapshots after role changes (§11.2)."""
+
+        def update_document() -> None:
+            self._database.connection.articles.update_many(
+                {"author": author},
+                {
+                    "$set": {
+                        "author_active": author_active,
+                        "author_publisher": author_publisher,
+                    }
+                },
+            )
+
+        await self._database.run(update_document)
 
     async def update(
         self,

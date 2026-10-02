@@ -17,10 +17,13 @@ def hash_secret(secret: str) -> str:
     return _hasher.hash(secret)
 
 
-def verify_secret(secret: str, secret_hash: str) -> bool:
-    """Verify a secret against a stored hash; any failure is a plain ``False``."""
+def verify_secret(stored_hash: str, secret: str) -> bool:
+    """Verify a secret against a stored hash; any failure is plain ``False``.
+
+    Argument order matches the underlying library: stored hash first.
+    """
     try:
-        return _hasher.verify(secret_hash, secret)
+        return _hasher.verify(stored_hash, secret)
     except VerifyMismatchError, VerificationError, InvalidHashError:
         return False
 

@@ -63,6 +63,46 @@ class MemberRepository:
         except sqlite3.IntegrityError as error:
             raise MemberAlreadyExistsError(str(error)) from error
 
+    async def create_first_or_member(
+        self,
+        display_name: str,
+        email: str,
+        password_hash: str,
+        security_question_code: str,
+        security_answer_hash: str,
+    ) -> tuple[str, bool]:
+        """Insert a member, promoting the first one (spec §2).
+
+        The uniqueness and first-member checks run inside the same
+        executor work unit as the insert, so the cycle is atomic.
+        """
+
+        def insert() -> tuple[str, bool]:
+            members = self._database.connection.members
+            if members.find_one({"email": email}) is not None:
+                raise MemberAlreadyExistsError("email already registered")
+            if members.find_one({"display_name": display_name}) is not None:
+                raise MemberAlreadyExistsError("display name already registered")
+            promoted = int(members.count_documents({})) == 0
+            result = members.insert_one(
+                {
+                    "display_name": display_name,
+                    "email": email,
+                    "password_hash": password_hash,
+                    "security_question_code": security_question_code,
+                    "security_answer_hash": security_answer_hash,
+                    "active": True,
+                    "administrator": promoted,
+                    "publisher": promoted,
+                }
+            )
+            return str(result.inserted_id), promoted
+
+        try:
+            return await self._database.run(insert)
+        except sqlite3.IntegrityError as error:
+            raise MemberAlreadyExistsError(str(error)) from error
+
     async def by_id(self, member_id: str) -> MemberDocument | None:
         def find() -> MemberDocument | None:
             document = self._database.connection.members.find_one({"_id": member_id})

@@ -96,10 +96,32 @@ def backfill_first_admin(connection: neosqlite.Connection) -> None:
     _logger.info("promoted the only member to administrator and publisher")
 
 
-def run_backfills(connection: neosqlite.Connection) -> None:
+def backfill_author_snapshots(connection: Any) -> None:
+    """Recompute denormalized author visibility snapshots (§13, §19.6).
+
+    Unconditional per-member update: ``modified_count`` only advances when
+    a value actually differs, so the pass is idempotent and cheap.
+    """
+    articles = connection.articles
+    changed = 0
+    for member in list(connection.members.find({})):
+        snapshots = {
+            "author_active": bool(member.get("active", False)),
+            "author_publisher": bool(member.get("publisher", False)),
+        }
+        result = articles.update_many(
+            {"author": member["display_name"]}, {"$set": snapshots}
+        )
+        changed += result.modified_count
+    if changed:
+        _logger.info("resynced author visibility snapshots on %d articles", changed)
+
+
+def run_backfills(connection: Any) -> None:
     """Run every idempotent startup backfill (tech-req §5.7)."""
     backfill_articles(connection)
     backfill_first_admin(connection)
+    backfill_author_snapshots(connection)
     ensure_content_version(connection)
 
 

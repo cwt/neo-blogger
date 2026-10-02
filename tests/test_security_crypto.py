@@ -16,16 +16,16 @@ from neoblogger.app.security.sessions import (
 def test_hash_and_verify_roundtrip() -> None:
     secret_hash = hash_secret("correct horse battery staple")
     assert secret_hash.startswith("$argon2id$")
-    assert verify_secret("correct horse battery staple", secret_hash) is True
+    assert verify_secret(secret_hash, "correct horse battery staple") is True
 
 
 def test_verify_rejects_wrong_secret() -> None:
     secret_hash = hash_secret("right")
-    assert verify_secret("wrong", secret_hash) is False
+    assert verify_secret(secret_hash, "wrong") is False
 
 
 def test_verify_rejects_malformed_hash() -> None:
-    assert verify_secret("anything", "not-a-hash") is False
+    assert verify_secret("not-a-hash", "anything") is False
 
 
 def test_hashes_are_salted() -> None:
@@ -34,8 +34,8 @@ def test_hashes_are_salted() -> None:
 
 def test_security_answer_normalized() -> None:
     answer_hash = hash_secret(normalize_answer("  Snowball II "))
-    assert verify_secret(normalize_answer("snowball ii"), answer_hash) is True
-    assert verify_secret("Snowball II", answer_hash) is False
+    assert verify_secret(answer_hash, normalize_answer("snowball ii")) is True
+    assert verify_secret(answer_hash, "Snowball II") is False
 
 
 def test_session_roundtrip() -> None:
