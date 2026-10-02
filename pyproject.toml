@@ -33,6 +33,7 @@ dev = [
   "pytest>=9",
   "pytest-asyncio>=1",
   "ruff>=0.13",
+  "types-Pygments",
 ]
 
 [tool.hatch.build.targets.wheel]
