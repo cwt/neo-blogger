@@ -8,7 +8,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ site_title }}{% endblock %}</title>
   <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="description" content="{% block description %}{{ site_description }}{% endblock %}">
+  <meta name="author" content="{% block author %}{{ site_author }}{% endblock %}">
   {% block head %}{% endblock %}
+  <link rel="canonical" href="{{ canonical_url }}">
+  <script type="application/ld+json">{{ jsonld | tojson }}</script>
   <link rel="stylesheet" href="/static/pico.min.css">
   <link rel="stylesheet" href="/static/custom.css">
 </head>

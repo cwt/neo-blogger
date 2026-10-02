@@ -17,6 +17,7 @@ from .security.sessions import SessionCodec
 from .services.accounts import AccountService
 from .services.articles import ArticleService
 from .services.auth import AuthService
+from .services.cache import ResponseCache
 from .services.comments import CommentService
 from .services.objects import ObjectsService
 from .services.visibility import ArticleVisibility
@@ -58,6 +59,7 @@ class AppContext:
     comment_service: CommentService
     objects_service: ObjectsService
     image_executor: ThreadPoolExecutor
+    response_cache: ResponseCache | None = None
 
     async def run_image(self, work: Callable[[], T]) -> T:
         """Offload CPU-bound Pillow work to the image executor (§5.6)."""

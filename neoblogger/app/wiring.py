@@ -18,11 +18,13 @@ from .blueprints.blog import HexIdConverter, create_blog_blueprint
 from .blueprints.discovery import create_discovery_blueprint
 from .blueprints.images import create_images_blueprint
 from .blueprints.profile import create_profile_blueprint
+from .blueprints.seo import canonical_url_for, create_seo_blueprint, jsonld_document
 from .context import AppContext
 from .security.csrf import tokens_match
 from .security.headers import security_headers
 from .security.ratelimit import FixedWindowRateLimiter
 from .services.cache import ResponseCache
+from .services.objects import legacy_url, readable_date
 from .text.minify import minify_html
 
 __all__ = ["assemble", "context_of", "drop_session", "issue_session"]
@@ -89,6 +91,13 @@ def assemble(app: Quart, context: AppContext) -> None:
     app.register_blueprint(create_admin_blueprint(context))
     app.register_blueprint(create_discovery_blueprint(context))
     app.register_blueprint(create_images_blueprint(context))
+    app.register_blueprint(create_seo_blueprint(context))
+    app.jinja_env.filters["readable_date"] = readable_date
+
+    def _legacy_filter(value: str) -> str:
+        return legacy_url(value)
+
+    app.jinja_env.filters["legacy_ext"] = _legacy_filter
 
     caching = context.config.caching
     cache = ResponseCache(
@@ -96,6 +105,8 @@ def assemble(app: Quart, context: AppContext) -> None:
         timeout_seconds=caching.timeout_seconds,
         max_entries=256,
     )
+
+    context.response_cache = cache
 
     @app.errorhandler(404)
     async def _not_found(_: Exception) -> tuple[str, int]:
@@ -160,13 +171,31 @@ def assemble(app: Quart, context: AppContext) -> None:
     @app.context_processor
     def _template_globals() -> dict[str, Any]:
         session = getattr(g, "session", None)
+        article = getattr(g, "article", None)
+        site = {
+            "title": context.config.application.site_title,
+            "author": context.config.application.site_author,
+            "description": context.config.application.site_description,
+        }
+        if article is not None:
+            structured = jsonld_document(article, site)
+        else:
+            structured = jsonld_document(None, site)
         return {
             "site_title": context.config.application.site_title,
+            "site_author": context.config.application.site_author,
+            "site_description": context.config.application.site_description,
             "member": getattr(g, "member", None),
             "csrf_token": getattr(g, "csrf_token", "")
             or (session.csrf_token if session is not None else ""),
             "year": datetime.datetime.now().year,
             "breadcrumbs": getattr(g, "breadcrumbs", []),
+            "canonical_url": canonical_url_for(
+                context.config.application.base_url,
+                request.url_root,
+                request.path,
+            ),
+            "jsonld": structured,
         }
 
     @app.after_request
@@ -178,6 +207,8 @@ def assemble(app: Quart, context: AppContext) -> None:
         member = getattr(g, "member", None)
         if getattr(g, "destroy_session_cookie", False):
             response.delete_cookie(_COOKIE_NAME)
+            # Sign-out clears the response cache (spec §4.3).
+            cache.clear()
         elif member is not None and session is not None:
             _set_session_cookie(response, context.auth.refresh(session), secure=secure)
             if "text/html" in response.headers.get("Content-Type", ""):

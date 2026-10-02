@@ -1,3 +1,5 @@
+{% set base_url_path = base_url_path | default('/') %}
+{% set query_suffix = query_suffix | default('') %}
 {% for article in articles %}
 <article class="card">
   {% if article.cover_url %}
@@ -13,7 +15,7 @@
     {% for tag in article.tags[:3] %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}
     {% if article.tags|length > 3 %}<span class="more-tags">+{{ article.tags|length - 3 }} more</span>{% endif %}
   </p>
-  <p class="meta">Posted by <a href="/profile/{{ article.author }}">{{ article.author }}</a> on {{ article.created }}</p>
+  <p class="meta">Posted by <a href="/profile/{{ article.author }}">{{ article.author }}</a> on {{ article.created | readable_date }}</p>
 </article>
 {% else %}
 <p>Nothing found.</p>

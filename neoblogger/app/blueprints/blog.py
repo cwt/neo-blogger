@@ -8,6 +8,7 @@ from werkzeug.wrappers import Response
 
 from ..context import AppContext
 from ..services.articles import CoverRequiredError
+from ..services.objects import derive_description, legacy_url
 from ..text.highlight import highlight_code_blocks
 from ..text.markdown import render_markdown
 from ..text.sanitize import sanitize_html
@@ -69,6 +70,14 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
                 sanitize_html(render_markdown(comment["text"]))
             )
             for comment in comments
+        }
+        g.article = {
+            "title": article["title"],
+            "author": article["author"],
+            "created": article["created"],
+            "description": derive_description(article["body"]),
+            "image": legacy_url(article["cover_url"]) if article["cover_url"] else None,
+            "tags": article["tags"],
         }
         g.breadcrumbs = [("Home", "/"), (article["title"], f"/{article_id}")]
         return await render_template(

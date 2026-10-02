@@ -38,6 +38,11 @@ class ResponseCache:
         """Whether caching is configured on (spec §14)."""
         return self._enabled
 
+    @property
+    def size(self) -> int:
+        """Current entry count; observability for tests and ops."""
+        return len(self._entries)
+
     async def get(self, key: str, version: int) -> str | None:
         """The cached HTML for ``key`` when fresh and version-matching."""
         if not self._enabled:
