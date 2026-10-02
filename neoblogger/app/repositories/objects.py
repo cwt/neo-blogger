@@ -111,14 +111,21 @@ class ObjectRepository:
         """
 
         def read() -> tuple[list[dict[str, Any]], int]:
+            connection = self._database.connection
+            present = connection.db.execute(
+                "SELECT COUNT(*) FROM sqlite_master"
+                " WHERE type='table' AND name='fs_files'"
+            ).fetchone()[0]
+            if not present:
+                return [], 0
             where = "WHERE json_extract(metadata, '$.owner') = ?" if owner else ""
             parameters: list[object] = [owner] if owner else []
             count = int(
-                self._database.connection.db.execute(
+                connection.db.execute(
                     f"SELECT COUNT(*) FROM fs_files {where}", parameters
                 ).fetchone()[0]
             )
-            rows = self._database.connection.db.execute(
+            rows = connection.db.execute(
                 "SELECT _id, filename, metadata FROM fs_files "
                 f"{where} ORDER BY uploadDate DESC LIMIT ? OFFSET ?",
                 [*parameters, per_page, (page - 1) * per_page],

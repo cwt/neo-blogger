@@ -15,35 +15,35 @@
 <table>
   <thead><tr><th>Member</th><th>State</th><th>Flags</th><th>Actions</th></tr></thead>
   <tbody>
-    {% for row in member_rows %}
+    {% for member in member_rows %}
     <tr>
-      <td><a href="/profile/{{ row.member.display_name }}">{{ row.member.display_name }}</a></td>
-      <td>{% if row.member.active %}Active{% else %}Disabled{% endif %}</td>
+      <td><a href="/profile/{{ member.display_name }}">{{ member.display_name }}</a></td>
+      <td>{% if member.active %}Active{% else %}Disabled{% endif %}</td>
       <td>
-        {% if row.member.administrator %}<span class="badge">Admin</span>{% endif %}
-        {% if row.member.publisher %}<span class="badge">Publisher</span>{% endif %}
+        {% if member.administrator %}<span class="badge">Admin</span>{% endif %}
+        {% if member.publisher %}<span class="badge">Publisher</span>{% endif %}
       </td>
       <td class="row-actions">
-        {% if row.member.active %}
-        <form method="post" action="/admin/members/{{ row.member._id }}/disable" class="inline-form">
+        {% if member.active %}
+        <form method="post" action="/admin/members/{{ member._id }}/disable" class="inline-form">
           <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
           <button type="submit" class="link-button">Disable</button>
         </form>
         {% else %}
-        <form method="post" action="/admin/members/{{ row.member._id }}/enable" class="inline-form">
+        <form method="post" action="/admin/members/{{ member._id }}/enable" class="inline-form">
           <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
           <button type="submit" class="link-button">Enable</button>
         </form>
         {% endif %}
-        {% if not row.member.administrator %}
-        <form method="post" action="/admin/members/{{ row.member._id }}/promote" class="inline-form">
+        {% if not member.administrator %}
+        <form method="post" action="/admin/members/{{ member._id }}/promote" class="inline-form">
           <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
           <button type="submit" class="link-button">Make admin</button>
         </form>
         {% endif %}
-        <form method="post" action="/admin/members/{{ row.member._id }}/publisher" class="inline-form">
+        <form method="post" action="/admin/members/{{ member._id }}/publisher" class="inline-form">
           <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
-          <button type="submit" class="link-button">{{ 'Revoke publisher' if row.member.publisher else 'Grant publisher' }}</button>
+          <button type="submit" class="link-button">{{ 'Revoke publisher' if member.publisher else 'Grant publisher' }}</button>
         </form>
       </td>
     </tr>
