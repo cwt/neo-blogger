@@ -1,0 +1,57 @@
+{% macro csrf_field() -%}
+<input type="hidden" name="csrftoken" value="{{ csrf_token }}">
+{%- endmacro %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site_title }}{% endblock %}</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  {% block head %}{% endblock %}
+  <link rel="stylesheet" href="/static/pico.min.css">
+  <link rel="stylesheet" href="/static/custom.css">
+</head>
+<body>
+<header class="site-header">
+  <nav class="container">
+    <a class="logo" href="/">{{ site_title }}</a>
+    <form class="nav-search" action="/search" method="get" role="search">
+      <input type="search" name="q" placeholder="Search articles" aria-label="Search articles">
+    </form>
+    <ul>
+      {% if member is none %}
+        <li><a href="/signin">Sign in</a></li>
+        <li><a href="/signup">Sign up</a></li>
+      {% else %}
+        {% if member.administrator %}<li><a href="/admin">Admin</a></li>{% endif %}
+        <li><a href="/write">Write</a></li>
+        <li><a href="/upload">Upload</a></li>
+        <li><a href="/profile">Profile</a></li>
+        <li>
+          <form action="/signout" method="post">
+            {{ csrf_field() }}
+            <button type="submit" class="link-button">Sign out</button>
+          </form>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+</header>
+<main class="container">
+  {% if breadcrumbs %}<nav class="breadcrumbs" aria-label="Breadcrumb">{% for label, url in breadcrumbs %}{% if not loop.last %}<a href="{{ url }}">{{ label }}</a> »{% else %} <span aria-current="page">{{ label }}</span>{% endif %}{% endfor %}</nav>{% endif %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}<p class="flash flash-{{ category }}">{{ message }}</p>{% endfor %}{% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <p><a href="https://github.com">GitHub</a> · <a href="https://x.com">X</a></p>
+    <p>© {{ year }} {{ site_title }} · <a href="/sitemap.xml">Site map</a></p>
+  </div>
+</footer>
+<button id="back-to-top" type="button" aria-label="Back to top" hidden>↑</button>
+<script src="/static/app.js" type="module"></script>
+</body>
+</html>

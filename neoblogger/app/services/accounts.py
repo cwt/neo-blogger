@@ -57,6 +57,12 @@ class AccountService:
         check runs inside the single insert work unit, so concurrent
         registrations cannot both win.
         """
+        if not display_name:
+            raise ValueError("a display name is required")
+        if not email:
+            raise ValueError("an email address is required")
+        if question_code not in SECURITY_QUESTIONS:
+            raise ValueError("choose a security question from the list")
         password_hash = hash_secret(password)
         answer_hash = hash_secret(answer.strip().lower())
         return await self._members.create_first_or_member(

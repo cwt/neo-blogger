@@ -412,6 +412,7 @@ Vendored assets (Pico CSS, EasyMDE) and any shipped/system ICU libraries require
 ## 19. Open items (decisions still pending)
 
 1. **Typeface pairing** for the distinctive typographic identity (§10) — propose candidates, self-hosted, with fallback metrics.
+2. **Security-question list** — **DECIDED 2026-10-02: seven codes** (`first-pet`, `elementary-school`, `birth-city`, `mothers-maiden-name`, `favorite-book`, `favorite-food`, `first-car`): the Appendix A count (7) wins over the eight-item parenthetical in §4.1; `favorite-sport` is the dropped candidate.
 2. **Article URL shape** — **DECIDED 2026-10-02: identifier-based**. Public article URLs carry the opaque document id (`/{article-id}`), per S2-verified query support and the safe-default rationale. No slug column in v1; slug support may be layered on later as a backward-compatible addition without touching linkage fields.
 3. ~~**Confirm NeoSQLite capabilities** via spikes S1–S5 (§5.8)~~ — **DONE 2026-10-02, all passed**; discovered constraints and the data-model ID policy are recorded in §5.1/§5.5/§5.8. The NX-27017/PyMongo route stays as the documented contingency if the executor facade proves inadequate.
 4. **Lighthouse verification tooling** for the CI runner (headless Chrome availability on the build host).

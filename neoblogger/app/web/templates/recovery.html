@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Password recovery · {{ site_title }}{% endblock %}
+{% block content %}
+<h1>Password recovery</h1>
+<form method="post">
+  {{ csrf_field() }}
+  <label for="email">Email address</label>
+  <input id="email" name="email" type="email" required value="{{ email or '' }}">
+  {% if question is defined and question %}
+    <p>{{ question }}</p>
+    <label for="answer">Answer</label>
+    <input id="answer" name="answer" required>
+    <label for="new_password">New password</label>
+    <input id="new_password" name="new_password" type="password" required minlength="8">
+  {% endif %}
+  <button type="submit">{{ 'Reset password' if question is defined and question else 'Continue' }}</button>
+</form>
+{% endblock %}

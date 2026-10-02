@@ -1,27 +1,30 @@
 """Neo-Blogger application factory (tech-req §3)."""
 
-from dataclasses import dataclass
+import secrets
 
 from quart import Quart
 
 from .app.config import RuntimeConfig, load_config
+from .app.context import AppContext
+from .app.wiring import assemble
 
 __all__ = ["AppContext", "build_app", "create_app"]
-
-_CONTEXT_KEY = "neoblogger_context"
-
-
-@dataclass(slots=True)
-class AppContext:
-    """Per-application state shared with later layers."""
-
-    config: RuntimeConfig
 
 
 def build_app(config: RuntimeConfig) -> Quart:
     """Assemble the Quart application from an already-resolved configuration."""
-    app = Quart(__name__)
-    app.config[_CONTEXT_KEY] = AppContext(config=config)
+    app = Quart(
+        __name__,
+        template_folder="app/web/templates",
+        static_folder="app/web/static",
+    )
+    context = AppContext.build(config)
+    # Quart's own session (flash messages) needs a signing key; production
+    # enforces a configured secret (§15.9), while development falls back to
+    # an ephemeral one. The session cookie itself is the signed cookie in
+    # security.sessions (Appendix B D4), not this.
+    app.secret_key = config.application.secret_key or secrets.token_hex(32)
+    assemble(app, context)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
