@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ article.title }} · {{ site_title }}{% endblock %}
+{% block head %}
+  {% if article.cover_url %}<link rel="preload" as="image" href="{{ article.cover_url }}" fetchpriority="high">{% endif %}
+{% endblock %}
+{% block content %}
+{% if member and member.administrator and not article.author_publisher %}
+<p class="flash flash-warning">This article is not visible to regular users (author is not an approved publisher).</p>
+{% endif %}
+<header class="article-header">
+  {% if article.cover_url %}<img class="cover" src="{{ article.cover_url }}" alt="{{ article.title }}" width="1200" height="400" fetchpriority="high">{% endif %}
+  <h1>{{ article.title }}</h1>
+  <hr>
+  <p class="subtitle">{{ article.subtitle }}</p>
+  <p class="meta">Posted by <a href="/profile/{{ article.author }}">{{ article.author }}</a> on {{ article.created }}</p>
+  <p class="meta">{% for tag in article.tags %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}</p>
+</header>
+<section class="article-body">{{ rendered_body | safe }}</section>
+<section id="comments" class="comments">
+  <h2>Comments</h2>
+  {% for comment in comments %}
+  <article class="comment">
+    <p class="meta">{{ comment.author }} · {{ comment.created }}</p>
+    <div>{{ comment_rendered[comment._id] | safe }}</div>
+    {% if member and (member.administrator or member.display_name == comment.author) %}
+    <form action="/comments/{{ comment._id }}/delete" method="post" class="inline-form">
+      <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
+      <button type="submit" class="link-button">Delete</button>
+    </form>
+    {% endif %}
+  </article>
+  {% else %}
+  <p>No comments yet.</p>
+  {% endfor %}
+  {% if member %}
+  <form action="/articles/{{ article._id }}/comments" method="post">
+    <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
+    <label for="comment-text">Add a comment</label>
+    <textarea id="comment-text" name="text" required></textarea>
+    <button type="submit">Post comment</button>
+  </form>
+  {% else %}
+  <p><a href="/signin">Sign in to comment.</a></p>
+  {% endif %}
+</section>
+{% endblock %}

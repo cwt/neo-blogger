@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{% if article %}Edit{% else %}Write{% endif %} · {{ site_title }}{% endblock %}
+{% block content %}
+<h1>{% if article %}Edit article{% else %}Write a new article{% endif %}</h1>
+<form method="post">
+  <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
+  <label for="title">Title</label>
+  <input id="title" name="title" required maxlength="200" value="{{ article.title if article else '' }}">
+  <label for="subtitle">Subtitle</label>
+  <input id="subtitle" name="subtitle" required maxlength="300" value="{{ article.subtitle if article else '' }}">
+  <label for="cover_url">Cover image URL {% if not article %}(optional while drafting){% endif %}</label>
+  <input id="cover_url" name="cover_url" value="{{ article.cover_url if article else '' }}">
+  <label for="tags">Tags (comma-separated)</label>
+  <input id="tags" name="tags" value="{{ article.tags | join(', ') if article else '' }}">
+  <label for="body">Body</label>
+  <textarea id="body" name="body" rows="16" required>{{ article.body if article else '' }}</textarea>
+  <div class="actions">
+    <button type="submit" name="action" value="draft">Save as Draft</button>
+    <button type="submit" name="action" value="publish">Publish</button>
+  </div>
+</form>
+{% endblock %}

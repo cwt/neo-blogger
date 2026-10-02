@@ -5,13 +5,15 @@ from typing import Any, cast
 from neosqlite import DESCENDING
 
 from .db import Database
-from .documents import CommentDocument
+from .documents import CommentDocument, normalized_document
 
 __all__ = ["CommentRepository"]
 
+_COMMENT_BOOLEANS = ("author_active",)
+
 
 def _normalize(document: dict[str, Any]) -> CommentDocument:
-    return cast(CommentDocument, dict(document))
+    return cast(CommentDocument, normalized_document(document, _COMMENT_BOOLEANS))
 
 
 class CommentRepository:

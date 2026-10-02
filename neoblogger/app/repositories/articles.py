@@ -12,7 +12,7 @@ from typing import Any, cast
 from neosqlite import DESCENDING
 
 from .db import Database
-from .documents import ArticleDocument, document_id
+from .documents import ArticleDocument, document_id, normalized_document
 
 __all__ = ["ArticleRepository", "rank_by_relevance"]
 
@@ -42,8 +42,11 @@ def rank_by_relevance(connection: Any, hex_ids: list[str], term: str) -> list[st
     return [str(row[0]) for row in rows]
 
 
+_ARTICLE_BOOLEANS = ("author_active", "author_publisher")
+
+
 def _normalize(document: dict[str, Any]) -> ArticleDocument:
-    return cast(ArticleDocument, dict(document))
+    return cast(ArticleDocument, normalized_document(document, _ARTICLE_BOOLEANS))
 
 
 class ArticleRepository:

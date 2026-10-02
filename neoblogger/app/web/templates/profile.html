@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Your profile · {{ site_title }}{% endblock %}
+{% block content %}
+<h1>Your profile</h1>
+<section class="stats">
+  <div class="stat-card"><strong>{{ stats.published }}</strong> published</div>
+  <div class="stat-card"><strong>{{ stats.drafts }}</strong> drafts</div>
+  <div class="stat-card"><strong>{{ stats.comments_written }}</strong> comments</div>
+  <div class="stat-card"><strong>{{ stats.contributions }}</strong> contributions</div>
+</section>
+<h2>Your posts</h2>
+<table>
+  <thead><tr><th>Image</th><th>Title</th><th>Published</th><th>Actions</th></tr></thead>
+  <tbody>
+    {% for article in posts %}
+    <tr>
+      <td>
+        {% if article.cover_url %}<img src="{{ article.cover_url }}" alt="" width="64" height="36">{% else %}<span class="no-image">No image</span>{% endif %}
+      </td>
+      <td>
+        <a href="/{{ article._id }}">{{ article.title }}</a>
+        {% if article.status == 'draft' %}<span class="badge">Draft</span>{% endif %}
+        {% if article.subtitle %}<br><small>{{ article.subtitle }}</small>{% endif %}
+      </td>
+      <td>{{ article.created }}</td>
+      <td class="row-actions">
+        <a href="/write/{{ article._id }}">Edit</a>
+        <form action="/articles/{{ article._id }}/delete" method="post" class="inline-form">
+          <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
+          <button type="submit" class="link-button">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4">You have not written anything yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -12,6 +12,8 @@ from typing import Any, cast
 from quart import Quart, Response, abort, g, request
 
 from .blueprints.auth import create_auth_blueprint
+from .blueprints.blog import HexIdConverter, create_blog_blueprint
+from .blueprints.profile import create_profile_blueprint
 from .context import AppContext
 from .security.csrf import tokens_match
 from .security.headers import security_headers
@@ -65,7 +67,10 @@ def _set_session_cookie(response: Response, value: str, *, secure: bool) -> None
 def assemble(app: Quart, context: AppContext) -> None:
     """Register blueprints and wire the request lifecycle onto ``app``."""
     app.extensions[_CONTEXT_KEY] = context
+    app.url_map.converters["hexid"] = HexIdConverter
     app.register_blueprint(create_auth_blueprint(context))
+    app.register_blueprint(create_blog_blueprint(context))
+    app.register_blueprint(create_profile_blueprint(context))
 
     @app.before_request
     async def _prepare() -> None:
