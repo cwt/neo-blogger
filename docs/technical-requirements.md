@@ -366,6 +366,8 @@ Dev: `pytest`, `pytest-asyncio`, `ruff`, `mypy`, lockfile tooling.
 
 Verified against current upstream data (vendor notices, PyPI/GitHub metadata). Verdict: **every runtime and build dependency is MIT-compatible; no GPL/AGPL/SSPL code enters the image**.
 
+**Clean-room provenance (2026-10-02).** This rebuild exists to avoid license contamination: the author's previous blogging platform tree (`../neo-bloggy/`) is license-encumbered and is **permanently excluded from local research** — it must never be opened, read, searched, copied, or explored by any agent or tool in this project. The local-research whitelist is exactly `../neosqlite/` and `../fts5-icu-tokenizer/` (AGENTS.md §3). All functional truth for this build derives from `docs/requirements.md` alone; any spec reference to a "reference implementation" is implemented from the spec text only.
+
 | Component | License |
 |---|---|
 | neosqlite, nx-27017, quart, hypercorn, gunicorn, markdown-it-py, nh3 (+ammonia dual), ruff, mypy, Pico CSS, EasyMDE, fts5-icu-tokenizer, pygments (BSD-2), argon2-cffi(-bindings) | MIT |
@@ -408,7 +410,7 @@ Vendored assets (Pico CSS, EasyMDE) and any shipped/system ICU libraries require
 ## 19. Open items (decisions still pending)
 
 1. **Typeface pairing** for the distinctive typographic identity (§10) — propose candidates, self-hosted, with fallback metrics.
-2. **Article URL shape**: identifier-based vs slug-based (needs a decision once S2 confirms query support; identifier-based is the safe default).
+2. **Article URL shape** — **DECIDED 2026-10-02: identifier-based**. Public article URLs carry the opaque document id (`/{article-id}`), per S2-verified query support and the safe-default rationale. No slug column in v1; slug support may be layered on later as a backward-compatible addition without touching linkage fields.
 3. ~~**Confirm NeoSQLite capabilities** via spikes S1–S5 (§5.8)~~ — **DONE 2026-10-02, all passed**; discovered constraints and the data-model ID policy are recorded in §5.1/§5.5/§5.8. The NX-27017/PyMongo route stays as the documented contingency if the executor facade proves inadequate.
 4. **Lighthouse verification tooling** for the CI runner (headless Chrome availability on the build host).
 5. **Upstream metadata nit**: `neosqlite/__init__.py` reports `__version__ = 1.5.0` while `pyproject.toml` is at 1.17.1 (stale constant — harmless at runtime; report/fix upstream when convenient).
