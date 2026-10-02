@@ -1,0 +1,14 @@
+# Build context exclusions (podman/docker ignore)
+.hg/
+.venv/
+dist/
+build/
+cache/
+__pycache__/
+**/__pycache__/
+*.db
+*.db-wal
+*.db-shm
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

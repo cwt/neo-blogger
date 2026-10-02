@@ -1,0 +1,33 @@
+/* Neo-Blogger custom layer on top of Pico CSS (spec §17). */
+
+.site-header nav ul li form { margin: 0; }
+.link-button {
+  background: none;
+  border: none;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+.flash { padding: 0.5rem 1rem; border-radius: 4px; }
+.flash-success { background: #e6f4ea; }
+.flash-error { background: #fce8e6; }
+.flash-warning { background: #fef7e0; }
+.breadcrumbs { font-size: 0.9em; margin-bottom: 1rem; }
+.tag { display: inline-block; background: #eef; padding: 0 0.5rem; border-radius: 3px; }
+.stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.stat-card { border: 1px solid #ccc; padding: 0.75rem 1rem; border-radius: 6px; }
+.badge { background: #ffe9a8; padding: 0 0.4rem; border-radius: 3px; font-size: 0.8em; }
+.row-actions form { display: inline-block; margin-right: 0.5rem; }
+.inline-form { display: inline-block; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.gallery-item img { width: 100%; height: auto; }
+.copy-button { float: right; font-size: 0.8em; cursor: pointer; }
+#back-to-top {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  z-index: 50;
+}

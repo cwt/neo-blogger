@@ -1,0 +1,21 @@
+[Unit]
+Description=Neo-Blogger: self-hosted long-form publishing
+
+[Container]
+Image=localhost/neo-blogger:latest
+AutoUpdate=registry
+
+# Persistent volumes, SELinux-labeled for rootless Podman (tech-req §15.4/§15.6)
+Volume=%h/neo-blogger/data:/data:Z
+PublishPort=127.0.0.1:8000:8000
+
+HealthCmd=/bin/sh -c "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)\""
+HealthInterval=30s
+HealthTimeout=5s
+HealthRetries=3
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

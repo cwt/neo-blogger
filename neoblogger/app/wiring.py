@@ -14,7 +14,7 @@ from quart import Quart, Response, abort, g, render_template, request
 
 from .blueprints.admin import create_admin_blueprint
 from .blueprints.auth import create_auth_blueprint
-from .blueprints.blog import HexIdConverter, create_blog_blueprint
+from .blueprints.blog import HexIdConverter, create_blog_blueprint, render_home_page
 from .blueprints.discovery import create_discovery_blueprint
 from .blueprints.images import create_images_blueprint
 from .blueprints.profile import create_profile_blueprint
@@ -108,6 +108,29 @@ def assemble(app: Quart, context: AppContext) -> None:
 
     context.response_cache = cache
 
+    @app.before_serving
+    async def _prewarm() -> None:
+        """Per-worker startup state warmup (spec §14, §19.4).
+
+        Starts the DB lazily here instead of waiting for the first request,
+        and renders anonymous home page 1 into the response cache so the
+        first request of the day is already fast.
+        """
+        await context.database.start()
+        if not (cache.active() and context.response_cache is not None):
+            return
+        version = await context.meta.content_version()
+        cached = await cache.get(_cache_key(), version)
+        if cached is not None:
+            return
+        async with app.test_request_context("/"):
+            g.member = None
+            g.session = None
+            rendered = await render_home_page(
+                context, 1, context.config.posts.per_page, None
+            )
+            await cache.put(_cache_key(), minify_html(rendered), version)
+
     @app.errorhandler(404)
     async def _not_found(_: Exception) -> tuple[str, int]:
         return (
@@ -158,8 +181,11 @@ def assemble(app: Quart, context: AppContext) -> None:
             g.destroy_session_cookie = True
         if request.method in _MUTATING_METHODS:
             form = await request.form
+            candidate = form.get("csrftoken", "") or request.headers.get(
+                "X-CSRFToken", ""
+            )
             expected = session.csrf_token if session is not None else ""
-            if not tokens_match(form.get("csrftoken", ""), expected):
+            if not tokens_match(candidate, expected):
                 abort(403)
         if cache.active() and member is None and _is_home_page():
             version = await context.meta.content_version()

@@ -1,10 +1,12 @@
 """Reading and writing: home feed, article pages, editor, deletion (spec §5, §6)."""
 
 import datetime
+from collections.abc import Awaitable
+from typing import Any
 
 from quart import Blueprint, flash, g, redirect, render_template, request
 from werkzeug.routing import BaseConverter
-from werkzeug.wrappers import Response
+from werkzeug.wrappers import Response as WerkzeugResponse
 
 from ..context import AppContext
 from ..services.articles import CoverRequiredError
@@ -13,7 +15,7 @@ from ..text.highlight import highlight_code_blocks
 from ..text.markdown import render_markdown
 from ..text.sanitize import sanitize_html
 
-__all__ = ["HexIdConverter", "create_blog_blueprint"]
+__all__ = ["HexIdConverter", "create_blog_blueprint", "render_home_page"]
 
 
 def _page_parameters(context: AppContext) -> tuple[int, int]:
@@ -43,20 +45,13 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
     blueprint = Blueprint("blog", __name__)
 
     @blueprint.route("/")
-    async def home() -> str | Response:
+    async def home() -> str | WerkzeugResponse:
         page, per_page = _page_parameters(context)
-        articles, total = await context.article_service.feed(g.member, page, per_page)
         g.breadcrumbs = [("Home", "/")]
-        return await render_template(
-            "home.html",
-            articles=articles,
-            page=page,
-            per_page=per_page,
-            has_more=total > page * per_page,
-        )
+        return await render_home_page(context, page, per_page, g.member)
 
     @blueprint.route("/<hexid:article_id>")
-    async def article_page(article_id: str) -> str | Response:
+    async def article_page(article_id: str) -> str | WerkzeugResponse:
         article = await context.articles.by_id(article_id)
         if article is None or not context.visibility.can_view(g.member, article):
             await flash("That content is not available.", "error")
@@ -90,7 +85,7 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
 
     @blueprint.route("/write", methods=["GET", "POST"])
     @blueprint.route("/write/<hexid:article_id>", methods=["GET", "POST"])
-    async def write(article_id: str | None = None) -> str | Response:
+    async def write(article_id: str | None = None) -> str | WerkzeugResponse:
         if g.member is None:
             await flash("Sign in to write.", "error")
             return redirect("/signin")
@@ -130,7 +125,7 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
         return await render_template("write.html", article=article)
 
     @blueprint.route("/articles/<hexid:article_id>/delete", methods=["POST"])
-    async def delete_article(article_id: str) -> Response:
+    async def delete_article(article_id: str) -> WerkzeugResponse:
         article = await context.articles.by_id(article_id)
         if article is None or not context.visibility.can_delete(g.member, article):
             await flash("You cannot delete that article.", "error")
@@ -140,7 +135,7 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
         return redirect("/profile")
 
     @blueprint.route("/articles/<hexid:article_id>/comments", methods=["POST"])
-    async def add_comment(article_id: str) -> Response:
+    async def add_comment(article_id: str) -> WerkzeugResponse:
         if g.member is None:
             await flash("Sign in to comment.", "error")
             return redirect("/signin")
@@ -160,7 +155,7 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
         return redirect(f"/{article_id}#comments")
 
     @blueprint.route("/comments/<hexid:comment_id>/delete", methods=["POST"])
-    async def delete_comment(comment_id: str) -> Response:
+    async def delete_comment(comment_id: str) -> WerkzeugResponse:
         comment = await context.comments.by_id(comment_id)
         if comment is None or g.member is None:
             await flash("That comment is not available.", "error")
@@ -172,6 +167,25 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
         return redirect(f"/{comment['article_id']}#comments")
 
     return blueprint
+
+
+def render_home_page(
+    context: AppContext, page: int, per_page: int, member: Any
+) -> Awaitable[str]:
+    """Awaitable of the home-feed page; shared by route and pre-warm (§14)."""
+
+    async def _render() -> str:
+        articles, total = await context.article_service.feed(member, page, per_page)
+        g.breadcrumbs = [("Home", "/")]
+        return await render_template(
+            "home.html",
+            articles=articles,
+            page=page,
+            per_page=per_page,
+            has_more=total > page * per_page,
+        )
+
+    return _render()
 
 
 def _now() -> str:

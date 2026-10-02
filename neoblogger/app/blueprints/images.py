@@ -1,10 +1,21 @@
 """Image uploads, gallery, serving, alt text, deletion (spec §10)."""
 
 import datetime
+import json
 from functools import partial
 from typing import Any
 
-from quart import Blueprint, flash, g, redirect, render_template, request
+from quart import (
+    Blueprint,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+)
+from quart import (
+    Response as QuartResponse,
+)
 from werkzeug.exceptions import abort as _abort
 from werkzeug.wrappers import Response as WerkzeugResponse
 
@@ -30,6 +41,41 @@ def _content_type_for(extension: str) -> str:
 
 def create_images_blueprint(context: AppContext) -> Blueprint:
     blueprint = Blueprint("images", __name__)
+
+    @blueprint.route("/upload/editor", methods=["POST"])
+    async def upload_for_editor() -> QuartResponse:
+        """JSON upload for the editor's image button (spec §10.1).
+
+        The client sends the CSRF token in the X-CSRFToken header (§15.2).
+        """
+        if g.member is None:
+            return QuartResponse(
+                json.dumps({"error": "sign in first"}),
+                status=401,
+                content_type="application/json",
+            )
+        files = await request.files
+        file = files.get("image")
+        if file is None:
+            return QuartResponse(
+                json.dumps({"error": "no image"}),
+                status=400,
+                content_type="application/json",
+            )
+        try:
+            object_id = await context.objects_service.upload(
+                g.member, file.read(), file.filename or ""
+            )
+        except ImageRejectedError as error:
+            return QuartResponse(
+                json.dumps({"error": str(error)}),
+                status=422,
+                content_type="application/json",
+            )
+        return QuartResponse(
+            json.dumps({"url": f"/images/{object_id}.webp"}),
+            content_type="application/json",
+        )
 
     @blueprint.route("/upload", methods=["GET", "POST"])
     async def upload() -> str | WerkzeugResponse:
