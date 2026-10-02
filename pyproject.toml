@@ -18,6 +18,7 @@ dependencies = [
   "neosqlite>=1.17",
   "nh3>=0.2",
   "pillow>=11.3",
+  "pydantic>=2.12",
   "pygments>=2.19",
   "quart>=0.20",
 ]
@@ -29,7 +30,6 @@ serve = ["gunicorn>=23", "uvicorn>=0.34"]
 dev = [
   "hypercorn>=0.17",
   "mypy>=1.18",
-  "pydantic>=2.12",
   "pytest>=9",
   "pytest-asyncio>=1",
   "ruff>=0.13",
@@ -57,3 +57,10 @@ known-first-party = ["neoblogger"]
 python_version = "3.14"
 strict = true
 files = ["neoblogger"]
+
+# The engine ships no py.typed marker; its references are Any-typed and are
+# contained behind the repository facade (tech-req §5.1).
+[[tool.mypy.overrides]]
+module = ["neosqlite", "neosqlite.*"]
+follow_imports = "skip"
+ignore_missing_imports = true
