@@ -1,0 +1,24 @@
+{% for article in articles %}
+<article class="card">
+  {% if article.cover_url %}
+    {% if loop.first %}
+      <img src="{{ article.cover_url }}" alt="{{ article.title }}" width="640" height="360" fetchpriority="high">
+    {% else %}
+      <img src="{{ article.cover_url }}" alt="{{ article.title }}" width="640" height="360" loading="lazy">
+    {% endif %}
+  {% endif %}
+  <h2><a href="/{{ article._id }}">{{ article.title }}</a></h2>
+  <p class="subtitle">{{ article.subtitle }}</p>
+  <p class="meta">
+    {% for tag in article.tags[:3] %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}
+    {% if article.tags|length > 3 %}<span class="more-tags">+{{ article.tags|length - 3 }} more</span>{% endif %}
+  </p>
+  <p class="meta">Posted by <a href="/profile/{{ article.author }}">{{ article.author }}</a> on {{ article.created }}</p>
+</article>
+{% else %}
+<p>Nothing found.</p>
+{% endfor %}
+<nav class="pagination" aria-label="Pagination">
+  {% if page > 1 %}<a href="{{ base_url_path }}?page={{ page - 1 }}{{ query_suffix }}">Previous</a>{% endif %}
+  {% if has_more %}<a href="{{ base_url_path }}?page={{ page + 1 }}{{ query_suffix }}">Next</a>{% endif %}
+</nav>

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} · {{ site_title }}{% endblock %}
+{% block content %}
+<header class="feed-header">
+  <h1>{{ heading }}</h1>
+  {% if related_tags %}
+  <p class="meta">Related tags:
+    {% for tag, count in related_tags %}<a class="tag" href="/tag/{{ tag }}">{{ tag }} ({{ count }})</a> {% endfor %}
+  </p>
+  {% endif %}
+</header>
+<section class="feed">{% include "_feed_cards.html" %}</section>
+{% endblock %}

@@ -124,10 +124,10 @@ class ArticleService:
         per_page: int,
     ) -> tuple[list[ArticleDocument], int]:
         """Relevance search with a substring fallback (spec §9)."""
+        combined = feed_filter(viewer)
+        combined["$text"] = {"$search": term}
         try:
-            return await self._articles.search(
-                feed_filter(viewer), term, page, per_page
-            )
+            return await self._articles.search(combined, term, page, per_page)
         except Exception:
             return await self._articles.substring_search(
                 feed_filter(viewer), term, page, per_page
