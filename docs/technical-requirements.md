@@ -279,7 +279,7 @@ Also: CSRF enforcement (§8), upload hardening (§9), per-request member re-reso
 
 ## 14. Configuration (TOML)
 
-Location from env `NEOBLOGGER_CONFIG` (essential for container volumes); defaults for every omitted key; missing values never crash (spec §18). Example skeleton:
+Location from env `NEOBLOGGER_CONFIG` (essential for container volumes); defaults for every omitted key; missing values never crash (spec §18). A **missing or unreadable configuration file is a fault, not a silent default** (recorded 2026-10-02): a lost volume mount must fail loudly rather than boot with defaults — silently booting with `https=false` and an empty secret would look like a passing deployment while it is unsafe. Example skeleton:
 
 ```toml
 [application]
