@@ -97,6 +97,12 @@ class CommentRepository:
 
         return await self._database.run(read)
 
+    async def total(self) -> int:
+        def count() -> int:
+            return int(self._database.connection.comments.count_documents({}))
+
+        return await self._database.run(count)
+
     async def count_by_author(self, author: str) -> int:
         def count() -> int:
             return int(

@@ -132,6 +132,36 @@ class MemberRepository:
 
         return await self._database.run(count)
 
+    async def dashboard(self) -> dict[str, int]:
+        """Member statistics in one round trip (spec §11.1)."""
+
+        def read() -> dict[str, int]:
+            pipeline = [
+                {
+                    "$facet": {
+                        "total": [{"$count": "n"}],
+                        "active": [{"$match": {"active": True}}, {"$count": "n"}],
+                        "admins": [
+                            {"$match": {"administrator": True}},
+                            {"$count": "n"},
+                        ],
+                        "publishers": [
+                            {"$match": {"publisher": True}},
+                            {"$count": "n"},
+                        ],
+                    }
+                }
+            ]
+            facet = next(
+                iter(self._database.connection.members.aggregate(pipeline).to_list())
+            )
+            return {
+                name: int(facet[name][0]["n"]) if facet[name] else 0
+                for name in ("total", "active", "admins", "publishers")
+            }
+
+        return await self._database.run(read)
+
     async def all(self) -> list[MemberDocument]:
         """Every member, newest first (admin panel §11.2)."""
 

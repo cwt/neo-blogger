@@ -263,6 +263,33 @@ class ArticleRepository:
 
         return await self._database.run(read)
 
+    async def rebuild_search_indexes(self) -> None:
+        """Drop and recreate the three per-field FTS indexes (spec §11.4).
+
+        Required after tokenizer changes, because existing entries must be
+        regenerated under the new segmentation rules.
+        """
+
+        def rebuild() -> None:
+            articles = self._database.connection.articles
+            for field in ("title", "subtitle", "body"):
+                articles.drop_search_index(field)
+                articles.create_search_index(field)
+
+        await self._database.run(rebuild)
+
+    async def unpublished_review(self) -> list[ArticleDocument]:
+        """All articles by non-publisher members, newest first (§11.3)."""
+
+        def read() -> list[ArticleDocument]:
+            cursor = self._database.connection.articles.find(
+                {"author_publisher": False}
+            )
+            documents = list(cursor.sort([("created", DESCENDING)]))
+            return [_normalize(document) for document in documents]
+
+        return await self._database.run(read)
+
     async def count_by_status(self) -> dict[str, int]:
         """Published and draft totals in one pipeline (dashboard, S2-4)."""
 

@@ -12,6 +12,7 @@ from typing import Any, cast
 
 from quart import Quart, Response, abort, g, render_template, request
 
+from .blueprints.admin import create_admin_blueprint
 from .blueprints.auth import create_auth_blueprint
 from .blueprints.blog import HexIdConverter, create_blog_blueprint
 from .blueprints.discovery import create_discovery_blueprint
@@ -85,6 +86,7 @@ def assemble(app: Quart, context: AppContext) -> None:
     app.register_blueprint(create_auth_blueprint(context))
     app.register_blueprint(create_blog_blueprint(context))
     app.register_blueprint(create_profile_blueprint(context))
+    app.register_blueprint(create_admin_blueprint(context))
     app.register_blueprint(create_discovery_blueprint(context))
     app.register_blueprint(create_images_blueprint(context))
 

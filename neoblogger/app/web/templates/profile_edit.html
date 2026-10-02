@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Edit profile · {{ site_title }}{% endblock %}
+{% block content %}
+<h1>Edit profile</h1>
+<p class="meta">Display names are permanent and cannot be changed.</p>
+<form method="post">
+  <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
+  <label for="email">Email address</label>
+  <input id="email" name="email" type="email" required value="{{ member.email }}">
+  <label for="new_password">New password (leave blank to keep)</label>
+  <input id="new_password" name="new_password" type="password" minlength="8">
+  <label for="question_code">Security question</label>
+  <select id="question_code" name="question_code" required>
+    {% for code, question in questions %}
+    <option value="{{ code }}" {% if code == member.security_question_code %}selected{% endif %}>{{ question }}</option>
+    {% endfor %}
+  </select>
+  <label for="answer">New answer</label>
+  <input id="answer" name="answer" required>
+  <button type="submit">Save changes</button>
+</form>
+{% endblock %}
