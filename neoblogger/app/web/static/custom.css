@@ -31,3 +31,19 @@
   cursor: pointer;
   z-index: 50;
 }
+
+/* Editor button labels without shipping an icon font (CSP 'self'). */
+.EasyMDEContainer .fa { font-style: normal; font-weight: normal; }
+.EasyMDEContainer .fa-bold::after { content: "B"; font-weight: bold; }
+.EasyMDEContainer .fa-italic::after { content: "I"; font-style: italic; }
+.EasyMDEContainer .fa-heading::after { content: "H"; }
+.EasyMDEContainer .fa-quote-left::after { content: "❝"; }
+.EasyMDEContainer .fa-list-ul::after { content: "•≡"; }
+.EasyMDEContainer .fa-list-ol::after { content: "1≡"; }
+.EasyMDEContainer .fa-table::after { content: "▦"; }
+.EasyMDEContainer .fa-image::after { content: "🖼"; }
+.EasyMDEContainer .fa-eye::after,
+.EasyMDEContainer .fa-columns { display: none; }
+.EasyMDEContainer button.preview::after { content: "Preview"; }
+.EasyMDEContainer button.guide::after { content: "Guide"; }
+.EasyMDEContainer .fa { text-align: center; }
