@@ -14,7 +14,6 @@ The toolchain is [`uv`](https://docs.astral.sh/uv/)-managed:
 
 ```sh
 uv sync                     # creates .venv, installs project + dev group, writes uv.lock
-uv pip install -e ../neosqlite   # optional: co-development install of the engine
 uv run pytest               # tests must be green with zero warnings
 uv run ruff check           # linting must be clean
 uv run mypy                 # strict typing must be clean
