@@ -244,6 +244,11 @@ def assemble(app: Quart, context: AppContext) -> None:
         if request.path.startswith("/search") or request.path.startswith("/tag/"):
             response.headers["Cache-Control"] = "no-cache"
         if (
+            request.path.startswith("/static/fonts/")
+            or request.path == "/static/fonts.css"
+        ):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        if (
             cache.active()
             and member is None
             and _is_home_page()

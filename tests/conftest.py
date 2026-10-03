@@ -29,3 +29,14 @@ def csrf_token_from(html: str) -> str:
 
 async def body_of(response: Any) -> str:
     return (await response.get_data()).decode("utf-8")
+
+
+async def build_app_with(tmp_path: Any) -> Any:
+    """Build an app whose database lives under ``tmp_path`` (isolation)."""
+    from neoblogger import build_app
+    from neoblogger.app.config import RuntimeConfig
+
+    config = RuntimeConfig()
+    config.database.path = str(tmp_path / "app.db")
+    application = build_app(config)
+    return application

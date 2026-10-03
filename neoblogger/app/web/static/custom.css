@@ -1,5 +1,48 @@
 /* Neo-Blogger custom layer on top of Pico CSS (spec §17). */
 
+/* IBM Plex typographic identity (spec §19.1, resolved 2026-10-04):
+   per-character fallback walks the stack top-down, so Latin resolves in
+   IBM Plex Sans, Thai in Thai Looped, each other script in its own
+   family; unicode-range subsetting keeps unused scripts off the wire.
+   CJK order favors Simplified Chinese on unlabeled pages; pages that
+   declare a language override via html[lang] below. */
+:root {
+  --pico-font-family-sans-serif:
+    "IBM Plex Sans",
+    "IBM Plex Sans Thai Looped",
+    "IBM Plex Sans Hebrew",
+    "IBM Plex Sans Arabic",
+    "IBM Plex Sans Devanagari",
+    "IBM Plex Sans SC",
+    "IBM Plex Sans TC",
+    "IBM Plex Sans JP",
+    "IBM Plex Sans KR",
+    system-ui, -apple-system, "Segoe UI", sans-serif;
+  --pico-font-family-monospace:
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --pico-font-family: var(--pico-font-family-sans-serif);
+}
+html[lang="ja"] {
+  --pico-font-family-sans-serif:
+    "IBM Plex Sans", "IBM Plex Sans JP", "IBM Plex Sans Thai Looped",
+    "IBM Plex Sans Hebrew", "IBM Plex Sans Arabic", "IBM Plex Sans Devanagari",
+    "IBM Plex Sans KR", system-ui, -apple-system, sans-serif;
+}
+html[lang="zh-Hant"] {
+  --pico-font-family-sans-serif:
+    "IBM Plex Sans", "IBM Plex Sans TC", "IBM Plex Sans SC",
+    "IBM Plex Sans Thai Looped", "IBM Plex Sans Hebrew",
+    "IBM Plex Sans Arabic", "IBM Plex Sans Devanagari",
+    system-ui, -apple-system, sans-serif;
+}
+html[lang="ko"] {
+  --pico-font-family-sans-serif:
+    "IBM Plex Sans", "IBM Plex Sans KR", "IBM Plex Sans TC", "IBM Plex Sans SC",
+    "IBM Plex Sans JP", "IBM Plex Sans Thai Looped", "IBM Plex Sans Hebrew",
+    "IBM Plex Sans Arabic", "IBM Plex Sans Devanagari",
+    system-ui, -apple-system, sans-serif;
+}
+
 .site-header nav ul li form { margin: 0; }
 .link-button {
   background: none;

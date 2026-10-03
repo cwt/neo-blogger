@@ -374,6 +374,7 @@ Verified against current upstream data (vendor notices, PyPI/GitHub metadata). V
 | Component | License |
 |---|---|
 | neosqlite, nx-27017, quart, hypercorn, gunicorn, markdown-it-py, nh3 (+ammonia dual), ruff, mypy, Pico CSS, EasyMDE, fts5-icu-tokenizer, pygments (BSD-2), argon2-cffi(-bindings) | MIT |
+| IBM Plex fonts (Sans, Mono, Sans Thai Looped, Sans Hebrew/Arabic/Devanagari/JP/KR/SC/TC) | SIL Open Font License 1.1 |
 | pymongo | Apache-2.0 |
 | uvicorn, itsdangerous, pytest-dev (pytest: MIT; pytest-asyncio: Apache-2.0) | BSD-3 / Apache-2.0 |
 | cffi | MIT-0 |
@@ -412,7 +413,7 @@ Vendored assets (Pico CSS, EasyMDE) and any shipped/system ICU libraries require
 
 ## 19. Open items (decisions still pending)
 
-1. **Typeface pairing** for the distinctive typographic identity (§10) — propose candidates, self-hosted, with fallback metrics.
+1. **Typeface pairing** (§10) — **DECIDED 2026-10-04: IBM Plex family** per user directive. Sans (Latin/Cyrillic/Greek), Mono (code), Sans Thai Looped, plus Sans Hebrew/Arabic/Devanagari/SC/TC/JP/KR per the site's language coverage (§12.2 scripts). Self-hosted woff2, `font-display: swap`; **conditional loading is native**: per-script families carry only their native-block unicode-range faces (GF subsets dropped for those families), IBM SC/TC come from `@ibm/plex-sans-sc|tc` npm split webfonts (Google Fonts does not host them); `tools/fetch_fonts.py` re-vendors. A page never downloads a script's faces unless the page renders characters inside their ranges. Default CJK order favors Simplified Chinese; `html[lang=ja|zh-Hant|ko]` overrides re-order the stack. Weight axis: Plex Sans is variable on GF (one file covers 100-700). OFL noted in §17.1 and `THIRD-PARTY-LICENSES.md`.
 2. **Security-question list** — **DECIDED 2026-10-02: seven codes** (`first-pet`, `elementary-school`, `birth-city`, `mothers-maiden-name`, `favorite-book`, `favorite-food`, `first-car`): the Appendix A count (7) wins over the eight-item parenthetical in §4.1; `favorite-sport` is the dropped candidate.
 2. **Article URL shape** — **DECIDED 2026-10-02: identifier-based**. Public article URLs carry the opaque document id (`/{article-id}`), per S2-verified query support and the safe-default rationale. No slug column in v1; slug support may be layered on later as a backward-compatible addition without touching linkage fields.
 3. ~~**Confirm NeoSQLite capabilities** via spikes S1–S5 (§5.8)~~ — **DONE 2026-10-02, all passed**; discovered constraints and the data-model ID policy are recorded in §5.1/§5.5/§5.8. The NX-27017/PyMongo route stays as the documented contingency if the executor facade proves inadequate.

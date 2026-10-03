@@ -10,6 +10,7 @@ inventory lives in `docs/technical-requirements.md` §17.1.
 |---|---|---|---|
 | Pico CSS | 2.1.1 | MIT | https://picocss.com · https://cdn.jsdelivr.net/npm/@picocss/pico@2 |
 | EasyMDE | 2.19.0 | MIT (Copyright Jeroen Akkerman) | https://github.com/Ionaru/easy-markdown-editor |
+| IBM Plex webfonts (13 families, woff2) | current | SIL OFL 1.1 | Google Fonts css2 + `@ibm/plex-sans-sc` / `@ibm/plex-sans-tc` npm split webfonts; re-vendor with `tools/fetch_fonts.py` |
 
 Icons referenced by EasyMDE font classes render as text-only buttons;
 no icon font is shipped.

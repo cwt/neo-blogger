@@ -2,7 +2,7 @@
 <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
 {%- endmacro %}
 <!doctype html>
-<html lang="en">
+<html lang="{% block lang %}en{% endblock %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,6 +14,7 @@
   <link rel="canonical" href="{{ canonical_url }}">
   <script type="application/ld+json">{{ jsonld | tojson }}</script>
   <link rel="stylesheet" href="/static/pico.min.css">
+  <link rel="stylesheet" href="/static/fonts.css">
   <link rel="stylesheet" href="/static/custom.css">
 </head>
 <body>

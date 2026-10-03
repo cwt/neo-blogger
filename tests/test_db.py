@@ -4,6 +4,7 @@ import logging
 import sqlite3
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -173,6 +174,47 @@ async def test_missing_tokenizer_library_falls_back(
     assert any(
         "could not be loaded" in record.getMessage() for record in caplog.records
     )
+
+
+async def test_restart_on_populated_database_is_safe(tmp_path: Any) -> None:
+    """16: startup must not fail against an already-indexed database."""
+
+    config = DatabaseConfig(path=str(tmp_path / "restart.db"))
+    first = Database(config)
+    await first.start()
+
+    def seed() -> None:
+        first.connection.members.insert_one(member_document("alice"))
+        first.connection.articles.insert_one(
+            {
+                "title": "Restart survivor",
+                "subtitle": "S",
+                "body": "Body text for FTS.",
+                "cover_url": "",
+                "author": "alice",
+                "created": "2026-01-01T00:00:00",
+                "tags": [],
+                "status": "published",
+                "author_active": True,
+                "author_publisher": True,
+            }
+        )
+
+    await first.run(seed)
+    await first.close()
+
+    second = Database(config)
+    await second.start()  # would raise IntegrityError before the hardening
+    hits = 0
+
+    def probe() -> int:
+        return len(
+            list(second.connection.articles.find({"$text": {"$search": "survivor"}}))
+        )
+
+    hits = await second.run(probe)
+    assert hits == 1
+    await second.close()
 
 
 async def test_document_id_normalization() -> None:

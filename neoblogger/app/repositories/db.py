@@ -29,6 +29,20 @@ class DatabaseNotStartedError(RuntimeError):
     """Raised when repository work runs before ``start()`` or after ``close()``."""
 
 
+def _fts_table_exists(connection: Any, collection: str, field: str) -> bool:
+    """Whether the engine already built ``<collection>_<field>_fts`` (S8).
+
+    Creating is idempotent on fresh databases (S4), but re-populating on a
+    restart against an existing indexed database trips the engine's
+    populate INSERT with duplicate rowids; skip in that case.
+    """
+    table = f"{collection}_{field}_fts"
+    row = connection.db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?", (table,)
+    ).fetchone()
+    return row is not None
+
+
 def ensure_indexes(connection: neosqlite.Connection) -> None:
     """Create all documented indexes idempotently (spec §12.2, tech-req §5.4)."""
     articles = connection.articles
@@ -42,7 +56,8 @@ def ensure_indexes(connection: neosqlite.Connection) -> None:
         [("author", ASCENDING), ("status", ASCENDING), ("created", DESCENDING)]
     )
     for field in ("title", "subtitle", "body"):
-        articles.create_search_index(field)
+        if not _fts_table_exists(connection, "articles", field):
+            articles.create_search_index(field)
     comments = connection.comments
     comments.create_index("created")
     comments.create_index("article_id")
