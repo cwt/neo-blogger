@@ -119,17 +119,20 @@ nav.breadcrumbs {
    closed-details children otherwise); mobile restores the real details
    behavior so the toggle can show and hide the panel. */
 .site-header { position: relative; }
+.site-header nav details { margin: 0; }
 .site-header .nav-menu summary {
   display: none;
   list-style: none;
   cursor: pointer;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: var(--pico-border-width) solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
   padding: 0.35rem 0.7rem;
   font-size: 1.25rem;
   line-height: 1;
   user-select: none;
   white-space: nowrap;
+  color: inherit;
+  background: none;
 }
 /* Pico appends its own disclosure marker after the summary content. */
 .site-header .nav-menu summary::after,
@@ -158,11 +161,12 @@ nav.breadcrumbs {
     flex-direction: column;
     align-items: stretch;
     gap: 0;
-    background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    background: var(--pico-dropdown-background-color);
+    color: var(--pico-dropdown-color);
+    border: var(--pico-border-width) solid var(--pico-dropdown-border-color);
+    border-radius: var(--pico-border-radius);
     padding: 0.25rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--pico-dropdown-box-shadow);
   }
   .site-header details.nav-menu[open] ~ .nav-links { display: flex; }
   .site-header .nav-links li { white-space: nowrap; }
@@ -173,6 +177,11 @@ nav.breadcrumbs {
     padding: 0.55rem 0.75rem;
     text-align: left;
     text-decoration: none;
+    border-radius: calc(var(--pico-border-radius) * 0.75);
+  }
+  .site-header .nav-links li a:hover,
+  .site-header .nav-links li button:hover {
+    background: var(--pico-dropdown-hover-background-color);
   }
   .site-header .nav-links li form { display: block; }
 }
@@ -186,13 +195,28 @@ nav.breadcrumbs {
   padding: 0;
 }
 .flash { padding: 0.5rem 1rem; border-radius: 4px; }
-.flash-success { background: #e6f4ea; }
-.flash-error { background: #fce8e6; }
-.flash-warning { background: #fef7e0; }
-.tag { display: inline-block; background: #eef; padding: 0 0.5rem; border-radius: 3px; }
+.flash-success {
+  background: color-mix(in srgb, var(--pico-form-element-valid-border-color) 22%, var(--pico-background-color));
+}
+.flash-error {
+  background: color-mix(in srgb, var(--pico-form-element-invalid-border-color) 22%, var(--pico-background-color));
+}
+.flash-warning {
+  background: color-mix(in srgb, var(--pico-mark-background-color) 55%, var(--pico-background-color));
+}
+.tag {
+  display: inline-block;
+  background: color-mix(in srgb, var(--pico-muted-border-color) 35%, var(--pico-background-color));
+  padding: 0 0.5rem;
+  border-radius: 3px;
+}
 .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-.stat-card { border: 1px solid #ccc; padding: 0.75rem 1rem; border-radius: 6px; }
-.badge { background: #ffe9a8; padding: 0 0.4rem; border-radius: 3px; font-size: 0.8em; }
+.stat-card {
+  border: var(--pico-border-width) solid var(--pico-muted-border-color);
+  padding: 0.75rem 1rem;
+  border-radius: var(--pico-border-radius);
+}
+.badge { background: var(--pico-mark-background-color); padding: 0 0.4rem; border-radius: 3px; font-size: 0.8em; }
 .row-actions form { display: inline-block; margin-right: 0.5rem; }
 .inline-form { display: inline-block; }
 
@@ -217,15 +241,17 @@ main table {
 /* Editor button labels without an icon font (CSP 'self'). EasyMDE 2.19
    names its toolbar buttons by action ("bold", "italic", ...), so labels
    are attached via ::after content. EasyMDE's own toolbar text is white
-   (invisible on Pico's white surfaces) — force readable colors. */
+   (invisible on Pico's surfaces) - theme it via Pico variables. */
 .EasyMDEContainer .editor-toolbar,
 .EasyMDEContainer .editor-toolbar button,
 .EasyMDEContainer .editor-toolbar button:hover,
 .EasyMDEContainer .editor-toolbar button.active {
-  color: #37404d;
+  color: var(--pico-color);
 }
 .EasyMDEContainer .editor-toolbar button { font-size: 1rem; font-weight: 600; }
-.EasyMDEContainer .editor-toolbar button:hover { background: #ececec; }
+.EasyMDEContainer .editor-toolbar button:hover {
+  background: var(--pico-dropdown-hover-background-color);
+}
 .EasyMDEContainer button.bold::after { content: "B"; }
 .EasyMDEContainer button.italic::after { content: "I"; font-style: italic; }
 .EasyMDEContainer button.heading::after { content: "H"; }
