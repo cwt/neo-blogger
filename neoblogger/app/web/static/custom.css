@@ -112,6 +112,24 @@ nav.breadcrumbs {
   white-space: nowrap;
 }
 
+/* Hamburger drawn in CSS, not as a glyph: no font can flash it black or
+   change its geometry; the bars are currentColor and follow the theme. */
+.hamburger {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 18px;
+  height: 14px;
+}
+.hamburger > span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
 /* Hamburger shell: hidden on desktop, exact-width on mobile so the row
    stays [logo, search, menu] one line tall.
    Desktop: display:contents melts the details wrapper away so the link
