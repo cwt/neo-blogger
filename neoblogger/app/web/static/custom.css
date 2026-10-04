@@ -138,6 +138,9 @@ nav.breadcrumbs {
 .site-header .nav-menu summary::after,
 .site-header .nav-menu summary::before { display: none; }
 .site-header .nav-menu summary::-webkit-details-marker { display: none; }
+/* Opening must not shift the toggle: Pico's accordion styling adds a
+   margin-bottom and re-colors the open summary. */
+.site-header nav details[open] > summary { margin-bottom: 0; color: inherit; }
 
 @media (max-width: 55.99rem) {
   .site-header > nav {
