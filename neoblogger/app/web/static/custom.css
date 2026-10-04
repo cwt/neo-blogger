@@ -43,7 +43,61 @@ html[lang="ko"] {
     system-ui, -apple-system, sans-serif;
 }
 
-.site-header nav ul li form { margin: 0; }
+/* Breadcrumbs stay inline and compact (Pico's bare-nav styling spreads
+   them edge-to-edge). */
+nav.breadcrumbs {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.9em;
+  margin-bottom: 1rem;
+}
+
+/* Responsive site header (spec §17): groups may reflow as units, but
+   labels never wrap inside themselves, and the search box stays capped. */
+.site-header > nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+.site-header .logo {
+  flex: 0 0 auto;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.site-header .nav-search {
+  flex: 1 1 14ch;
+  min-width: 10ch;
+  max-width: 42ch;
+  margin: 0;
+}
+.site-header .nav-search input {
+  width: 100%;
+  margin: 0;
+}
+.site-header nav ul {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+}
+.site-header nav ul li,
+.site-header nav ul li a,
+.site-header nav ul li button {
+  margin: 0;
+  white-space: nowrap;
+}
+.site-header nav ul li form {
+  display: inline-block;
+  margin: 0;
+}
+
 .link-button {
   background: none;
   border: none;
@@ -56,13 +110,19 @@ html[lang="ko"] {
 .flash-success { background: #e6f4ea; }
 .flash-error { background: #fce8e6; }
 .flash-warning { background: #fef7e0; }
-.breadcrumbs { font-size: 0.9em; margin-bottom: 1rem; }
 .tag { display: inline-block; background: #eef; padding: 0 0.5rem; border-radius: 3px; }
 .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .stat-card { border: 1px solid #ccc; padding: 0.75rem 1rem; border-radius: 6px; }
 .badge { background: #ffe9a8; padding: 0 0.4rem; border-radius: 3px; font-size: 0.8em; }
 .row-actions form { display: inline-block; margin-right: 0.5rem; }
 .inline-form { display: inline-block; }
+
+/* Tables stay usable on narrow screens (spec §17). */
+main table {
+  display: block;
+  overflow-x: auto;
+}
+
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .gallery-item img { width: 100%; height: auto; }
 .copy-button { float: right; font-size: 0.8em; cursor: pointer; }
@@ -75,18 +135,26 @@ html[lang="ko"] {
   z-index: 50;
 }
 
-/* Editor button labels without shipping an icon font (CSP 'self'). */
-.EasyMDEContainer .fa { font-style: normal; font-weight: normal; }
-.EasyMDEContainer .fa-bold::after { content: "B"; font-weight: bold; }
-.EasyMDEContainer .fa-italic::after { content: "I"; font-style: italic; }
-.EasyMDEContainer .fa-heading::after { content: "H"; }
-.EasyMDEContainer .fa-quote-left::after { content: "❝"; }
-.EasyMDEContainer .fa-list-ul::after { content: "•≡"; }
-.EasyMDEContainer .fa-list-ol::after { content: "1≡"; }
-.EasyMDEContainer .fa-table::after { content: "▦"; }
-.EasyMDEContainer .fa-image::after { content: "🖼"; }
-.EasyMDEContainer .fa-eye::after,
-.EasyMDEContainer .fa-columns { display: none; }
+/* Editor button labels without an icon font (CSP 'self'). EasyMDE 2.19
+   names its toolbar buttons by action ("bold", "italic", ...), so labels
+   are attached via ::after content. EasyMDE's own toolbar text is white
+   (invisible on Pico's white surfaces) — force readable colors. */
+.EasyMDEContainer .editor-toolbar,
+.EasyMDEContainer .editor-toolbar button,
+.EasyMDEContainer .editor-toolbar button:hover,
+.EasyMDEContainer .editor-toolbar button.active {
+  color: #37404d;
+}
+.EasyMDEContainer .editor-toolbar button { font-size: 1rem; font-weight: 600; }
+.EasyMDEContainer .editor-toolbar button:hover { background: #ececec; }
+.EasyMDEContainer button.bold::after { content: "B"; }
+.EasyMDEContainer button.italic::after { content: "I"; font-style: italic; }
+.EasyMDEContainer button.heading::after { content: "H"; }
+.EasyMDEContainer button.quote::after { content: "❝"; }
+.EasyMDEContainer button.unordered-list::after { content: "•≡"; }
+.EasyMDEContainer button.ordered-list::after { content: "1≡"; }
+.EasyMDEContainer button.table::after { content: "▦"; }
+.EasyMDEContainer button.insert-image::after { content: "🖼"; }
 .EasyMDEContainer button.preview::after { content: "Preview"; }
+.EasyMDEContainer button.side-by-side::after { content: "Split"; }
 .EasyMDEContainer button.guide::after { content: "Guide"; }
-.EasyMDEContainer .fa { text-align: center; }

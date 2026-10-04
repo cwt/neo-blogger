@@ -80,9 +80,10 @@ if (bodyField && typeof EasyMDE !== "undefined") {
     input.click();
   }
 
-  EasyMDE({
+  new EasyMDE({
     element: bodyField,
     spellChecker: false,
+    autoDownloadFontAwesome: false,
     autosave: { enabled: false },
     toolbar: [
       "bold", "italic", "heading", "|",
