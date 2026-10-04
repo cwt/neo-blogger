@@ -55,8 +55,9 @@ nav.breadcrumbs {
   margin-bottom: 1rem;
 }
 
-/* Responsive site header (spec §17): groups may reflow as units, but
-   labels never wrap inside themselves, and the search box stays capped. */
+/* Responsive site header (spec §17). Desktop: logo, capped search box,
+   and visible inline links on one row. Mobile (< 56rem): a single row
+   [logo, search, hamburger] with the menu links in a dropdown panel. */
 .site-header > nav {
   display: flex;
   align-items: center;
@@ -93,9 +94,87 @@ nav.breadcrumbs {
   margin: 0;
   white-space: nowrap;
 }
+.site-header .nav-links li {
+  display: inline-flex;
+  align-items: center;
+}
 .site-header nav ul li form {
   display: inline-block;
   margin: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Hamburger shell: hidden on desktop, exact-width on mobile so the row
+   stays [logo, search, menu] one line tall.
+   Desktop: display:contents melts the details wrapper away so the link
+   list lays out inline even while closed (the UA stylesheet hides
+   closed-details children otherwise); mobile restores the real details
+   behavior so the toggle can show and hide the panel. */
+.site-header { position: relative; }
+.site-header .nav-menu summary {
+  display: none;
+  list-style: none;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.35rem 0.7rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  user-select: none;
+  white-space: nowrap;
+}
+/* Pico appends its own disclosure marker after the summary content. */
+.site-header .nav-menu summary::after,
+.site-header .nav-menu summary::before { display: none; }
+.site-header .nav-menu summary::-webkit-details-marker { display: none; }
+
+@media (max-width: 55.99rem) {
+  .site-header > nav {
+    flex-wrap: nowrap;
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+  .site-header .logo { flex: 0 1 auto; white-space: nowrap; text-decoration: none; }
+  .site-header .nav-search { flex: 1 1 auto; min-width: 0; max-width: none; }
+  .site-header .nav-menu { display: block; flex: 0 0 auto; }
+  .site-header .nav-menu summary { display: flex; align-items: center; }
+  /* The link list (a sibling of the toggle) becomes the open dropdown;
+     hidden while closed. */
+  .site-header .nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 0.25rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+  .site-header details.nav-menu[open] ~ .nav-links { display: flex; }
+  .site-header .nav-links li { white-space: nowrap; }
+  .site-header .nav-links li a,
+  .site-header .nav-links li button {
+    display: block;
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    text-align: left;
+    text-decoration: none;
+  }
+  .site-header .nav-links li form { display: block; }
 }
 
 .link-button {

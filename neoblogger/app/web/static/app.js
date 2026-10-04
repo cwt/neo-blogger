@@ -102,3 +102,20 @@ if (bodyField && typeof EasyMDE !== "undefined") {
 } else if (bodyField) {
   // Progressive enhancement fallback: the plain textarea still works.
 }
+
+// Navigation menu (mobile dropdown): close after choosing an entry or
+// tapping outside the panel, so the next page never opens with it stuck.
+const navToggle = document.querySelector('.site-header details.nav-menu');
+const navLinks = document.querySelector('.site-header ul.nav-links');
+if (navToggle && navLinks) {
+  navLinks.addEventListener('click', (event) => {
+    if (event.target.closest('a, button')) {
+      navToggle.open = false;
+    }
+  });
+  document.addEventListener('click', (event) => {
+    if (navToggle.open && !event.target.closest('.site-header nav')) {
+      navToggle.open = false;
+    }
+  });
+}
