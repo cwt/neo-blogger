@@ -8,7 +8,6 @@ from quart import Blueprint, flash, g, redirect, render_template, request
 from werkzeug.wrappers import Response
 
 from ..context import AppContext
-from ..repositories.documents import MemberDocument
 
 __all__ = ["create_admin_blueprint"]
 
@@ -67,9 +66,8 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
             await flash("An administrator can never be disabled.", "error")
             return redirect("/admin")
         await context.members.set_active(member_id, not disable)
-        await context.visibility.resync_author_articles(
-            await _member_with_state(member_id, not disable)
-        )
+        target["active"] = not disable
+        await context.visibility.resync_author_articles(target)
         await context.meta.bump_content_version()
         await flash("Account updated.", "success")
         return redirect("/admin")
@@ -79,7 +77,12 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
         refused = await _guard()
         if refused is not None:
             return refused
+        target = await context.members.by_id(member_id)
+        if target is None:
+            await flash("No such member.", "error")
+            return redirect("/admin")
         await context.members.set_administrator(member_id, True)
+        await context.visibility.resync_author_articles(target)
         await context.meta.bump_content_version()
         await flash("Promoted to administrator.", "success")
         return redirect("/admin")
@@ -95,9 +98,8 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
             return redirect("/admin")
         granted = not target["publisher"]
         await context.members.set_publisher(member_id, granted)
-        await context.visibility.resync_author_articles(
-            await _member_with_state(member_id, target["active"])
-        )
+        target["publisher"] = granted
+        await context.visibility.resync_author_articles(target)
         await context.meta.bump_content_version()
         await flash(
             "Publisher status granted." if granted else "Publisher status revoked.",
@@ -113,12 +115,5 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
         await context.articles.rebuild_search_indexes()
         await flash("Search indexes rebuilt.", "success")
         return redirect("/admin")
-
-    async def _member_with_state(member_id: str, active: bool) -> MemberDocument:
-        target = await context.members.by_id(member_id)
-        if target is None:
-            raise ValueError("member vanished mid-toggle")
-        target["active"] = active
-        return target
 
     return blueprint

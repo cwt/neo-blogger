@@ -110,6 +110,15 @@ async def test_admin_cannot_disable_admin(app: Any) -> None:
     assert still["active"] is True
 
 
+async def test_promote_missing_member_flashes_error(app: Any) -> None:
+    root_client = await signup(app, "root")
+    response = await toggle(app, root_client, "0" * 24, "promote")
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/admin"
+    flashed = await body_of(await root_client.get("/admin"))
+    assert "No such member." in flashed
+
+
 async def test_promotion_is_one_way(app: Any) -> None:
     context = app.extensions["neoblogger_context"]
     root_client = await signup(app, "root")
