@@ -111,8 +111,17 @@ def _set_session_cookie(response: Response, value: str, *, secure: bool) -> None
 
 
 def _cache_key() -> str:
-    """The home-feed cache key: page number plus page size (spec §14)."""
-    return f"home:{request.args.get('page', '1')}"
+    """The home-feed cache key: validated page number (spec §14).
+
+    Raw query input would mint a junk key per malformed value ("abc",
+    "-3", ...) for identical content; coerce exactly like the feed
+    renderer so one page maps to one key.
+    """
+    try:
+        page = int(request.args.get("page", "1"))
+    except ValueError:
+        page = 1
+    return f"home:{max(1, page)}"
 
 
 def _is_home_page() -> bool:

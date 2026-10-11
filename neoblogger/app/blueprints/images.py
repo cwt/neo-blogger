@@ -127,11 +127,7 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
         if extension != "webp":
             target = "jpg" if extension in ("jpg", "jpeg") else "png"
         if target and len(payload) <= _CONVERSION_CAP:
-
-            def convert(source: bytes, output_format: str) -> bytes:
-                return convert_legacy(source, output_format)
-
-            payload = await context.run_image(partial(convert, payload, target))
+            payload = await context.run_image(partial(convert_legacy, payload, target))
         etag = registry["md5"]
         if request.if_none_match and etag in request.if_none_match:
             response = WerkzeugResponse("", status=304)

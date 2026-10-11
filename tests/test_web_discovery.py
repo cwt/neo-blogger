@@ -57,6 +57,23 @@ async def test_tag_page_admin_sees_drafts(app: Any) -> None:
     assert "Tagged draft" not in await body_of(await stranger.get("/tag/python"))
 
 
+async def test_cache_key_normalizes_malformed_page(app: Any) -> None:
+    from neoblogger import build_app
+
+    config = cache_enabled_config()
+    config.database.path = app.extensions["neoblogger_context"].config.database.path
+    fresh = build_app(config)
+    context = fresh.extensions["neoblogger_context"]
+    await context.database.start()
+    stranger = fresh.test_client()
+    first = await body_of(await stranger.get("/?page=notanumber"))
+    second = await body_of(await stranger.get("/?page=1"))
+    assert first == second
+    assert context.response_cache is not None
+    assert context.response_cache.size == 1
+    await context.database.close()
+
+
 async def test_search_pagination_link_encodes_query(app: Any) -> None:
     context = app.extensions["neoblogger_context"]
     context.config.posts.per_page = 1
