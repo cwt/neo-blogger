@@ -163,6 +163,35 @@ async def test_write_requires_sign_in(app: Any) -> None:
     assert response.headers["Location"] == "/signin"
 
 
+async def test_edit_save_failure_returns_to_edit_page(
+    app: Any, monkeypatch: Any
+) -> None:
+    user_client = await signup(app, "user")
+    article_id = await write_article(app, user_client, title="Fragile", publish=False)
+
+    async def broken_save(*args: Any, **kwargs: Any) -> str:
+        raise RuntimeError("storage unavailable")
+
+    context = app.extensions["neoblogger_context"]
+    monkeypatch.setattr(context.article_service, "save", broken_save)
+    page = await user_client.get(f"/write/{article_id}")
+    token = csrf_token_from(await body_of(page))
+    response = await user_client.post(
+        f"/write/{article_id}",
+        form={
+            "csrftoken": token,
+            "title": "Fragile",
+            "subtitle": "sub",
+            "body": "Body.",
+            "cover_url": "",
+            "tags": "",
+            "action": "draft",
+        },
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"] == f"/write/{article_id}"
+
+
 async def test_comment_add_and_author_delete(app: Any) -> None:
     user_client = await signup(app, "user")
     article_id = await write_article(

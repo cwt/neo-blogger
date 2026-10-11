@@ -114,7 +114,8 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
                 return redirect(f"/write/{article_id}" if article_id else "/write")
             except Exception as error:  # — flashed, never a trace
                 await flash(str(error), "error")
-                return redirect("/write")
+                edit_target = f"/write/{article_id}" if article_id else "/write"
+                return redirect(edit_target)
             await flash("Saved.", "success")
             if publish:
                 if article_id is None:
