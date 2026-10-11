@@ -122,22 +122,31 @@ class ArticleRepository:
         cover_url: str,
         tags: list[str],
         status: str,
+        author_active: bool | None = None,
+        author_publisher: bool | None = None,
     ) -> None:
-        """Author-controlled fields only; author and created are immutable."""
+        """Author-controlled fields only; author and created are immutable.
+
+        Snapshot flags refresh only when explicitly given, so edits can
+        resync visibility state without unrelated writes touching it.
+        """
 
         def update_document() -> None:
+            fields: dict[str, object] = {
+                "title": title,
+                "subtitle": subtitle,
+                "body": body,
+                "cover_url": cover_url,
+                "tags": tags,
+                "status": status,
+            }
+            if author_active is not None:
+                fields["author_active"] = author_active
+            if author_publisher is not None:
+                fields["author_publisher"] = author_publisher
             self._database.connection.articles.update_one(
                 {"_id": article_id},
-                {
-                    "$set": {
-                        "title": title,
-                        "subtitle": subtitle,
-                        "body": body,
-                        "cover_url": cover_url,
-                        "tags": tags,
-                        "status": status,
-                    }
-                },
+                {"$set": fields},
             )
 
         await self._database.run(update_document)

@@ -136,6 +136,68 @@ async def test_search_respects_visibility_filter(
     assert docs[0]["title"] == "public"
 
 
+async def test_update_preserves_snapshots_when_omitted(
+    articles: ArticleRepository,
+) -> None:
+    article_id = await articles.create(
+        "Snap",
+        "s",
+        "body",
+        "",
+        "a",
+        "2026-01-01T00:00:00",
+        [],
+        "published",
+        author_active=True,
+        author_publisher=True,
+    )
+    await articles.update(
+        article_id,
+        title="Snap v2",
+        subtitle="s",
+        body="body",
+        cover_url="",
+        tags=[],
+        status="published",
+    )
+    fetched = await articles.by_id(article_id)
+    assert fetched is not None
+    assert fetched["author_active"] is True
+    assert fetched["author_publisher"] is True
+
+
+async def test_update_refreshes_snapshots_when_given(
+    articles: ArticleRepository,
+) -> None:
+    article_id = await articles.create(
+        "Snap",
+        "s",
+        "body",
+        "",
+        "a",
+        "2026-01-01T00:00:00",
+        [],
+        "published",
+        author_active=False,
+        author_publisher=False,
+    )
+    await articles.update(
+        article_id,
+        title="Snap v2",
+        subtitle="s",
+        body="body",
+        cover_url="",
+        tags=[],
+        status="published",
+        author_active=True,
+        author_publisher=True,
+    )
+    fetched = await articles.by_id(article_id)
+    assert fetched is not None
+    assert fetched["author_active"] is True
+    assert fetched["author_publisher"] is True
+
+
 async def test_search_excludes_non_matching_documents(
     articles: ArticleRepository,
 ) -> None:

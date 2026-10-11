@@ -82,6 +82,19 @@ class ArticleService:
                 author_publisher=author["publisher"],
             )
         else:
+            existing = await self._articles.by_id(article_id)
+            snapshot_active: bool | None = author["active"]
+            snapshot_publisher: bool | None = author["publisher"]
+            if existing is not None and existing["author"] != author["display_name"]:
+                # An administrator editing someone else's article must not
+                # stamp their own flags onto it; resync from the owner.
+                owner = await self._members.by_display_name(existing["author"])
+                if owner is not None:
+                    snapshot_active = owner["active"]
+                    snapshot_publisher = owner["publisher"]
+                else:
+                    snapshot_active = None
+                    snapshot_publisher = None
             await self._articles.update(
                 article_id,
                 title=title,
@@ -90,6 +103,8 @@ class ArticleService:
                 cover_url=cover_url,
                 tags=tags,
                 status=status,
+                author_active=snapshot_active,
+                author_publisher=snapshot_publisher,
             )
             saved_id = article_id
         await self._meta.bump_content_version()

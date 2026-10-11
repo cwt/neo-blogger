@@ -166,3 +166,100 @@ async def test_profile_statistics(services: dict[str, Any]) -> None:
         "comments_written": 0,
         "contributions": 0,
     }
+
+
+async def test_edit_resyncs_author_snapshots(services: dict[str, Any]) -> None:
+    from neoblogger.app.services.articles import ArticleService
+
+    article_service = ArticleService(
+        services["articles"],
+        services["members"],
+        services["meta"],
+        services["visibility"],
+    )
+    member_id, _ = await services["accounts"].register(
+        "root", "root@x.io", "pw", "first-pet", "City"
+    )
+    assert member_id is not None
+    writer_id, _ = await services["accounts"].register(
+        "writer", "writer@x.io", "pw", "first-pet", "Town"
+    )
+    member = await services["members"].by_id(writer_id)
+    assert member is not None
+    assert member["publisher"] is False
+    article_id = await article_service.save(
+        member,
+        article_id=None,
+        title="T",
+        subtitle="s",
+        body="body",
+        cover_url="",
+        tags_raw="",
+        publish=False,
+    )
+    # The writer gains publisher status; editing must refresh the snapshot.
+    await services["members"].set_publisher(writer_id, True)
+    member = await services["members"].by_id(writer_id)
+    assert member is not None
+    await article_service.save(
+        member,
+        article_id=article_id,
+        title="T",
+        subtitle="s",
+        body="body",
+        cover_url="",
+        tags_raw="",
+        publish=False,
+    )
+    fetched = await services["articles"].by_id(article_id)
+    assert fetched is not None
+    assert fetched["author_publisher"] is True
+
+
+async def test_admin_edit_keeps_owner_snapshots(services: dict[str, Any]) -> None:
+    from neoblogger.app.services.articles import ArticleService
+
+    article_service = ArticleService(
+        services["articles"],
+        services["members"],
+        services["meta"],
+        services["visibility"],
+    )
+    owner_id, _ = await services["accounts"].register(
+        "root", "root@x.io", "pw", "first-pet", "City"
+    )
+    assert owner_id is not None
+    writer_id, _ = await services["accounts"].register(
+        "writer", "writer@x.io", "pw", "first-pet", "Town"
+    )
+    owner = await services["members"].by_id(writer_id)
+    assert owner is not None
+    article_id = await article_service.save(
+        owner,
+        article_id=None,
+        title="T",
+        subtitle="s",
+        body="body",
+        cover_url="",
+        tags_raw="",
+        publish=False,
+    )
+    admin = dict(owner)
+    admin["display_name"] = "root"
+    admin["administrator"] = True
+    admin["publisher"] = True
+    await article_service.save(
+        admin,  # type: ignore[arg-type]
+        article_id=article_id,
+        title="T edited",
+        subtitle="s",
+        body="body",
+        cover_url="",
+        tags_raw="",
+        publish=False,
+    )
+    fetched = await services["articles"].by_id(article_id)
+    assert fetched is not None
+    assert fetched["title"] == "T edited"
+    assert fetched["author"] == "writer"
+    assert fetched["author_publisher"] is False
