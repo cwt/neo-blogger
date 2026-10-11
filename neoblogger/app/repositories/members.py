@@ -7,6 +7,8 @@ boundary; ``_id`` is normalized to its hex string (§5.1 policies).
 import sqlite3
 from typing import Any, cast
 
+from neosqlite import DESCENDING
+
 from .db import Database
 from .documents import MemberDocument, normalized_document
 
@@ -166,11 +168,15 @@ class MemberRepository:
         return await self._database.run(read)
 
     async def all(self) -> list[MemberDocument]:
-        """Every member, newest first (admin panel §11.2)."""
+        """Every member, newest first (admin panel §11.2).
+
+        ObjectIds are time-ordered, so ``_id`` descending is a stable
+        newest-first order; ``$natural`` storage order is not.
+        """
 
         def read() -> list[MemberDocument]:
             cursor = self._database.connection.members.find({})
-            documents = list(cursor.sort([("$natural", -1)]))
+            documents = list(cursor.sort([("_id", DESCENDING)]))
             return [_normalize(document) for document in documents]
 
         return await self._database.run(read)

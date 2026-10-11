@@ -122,7 +122,7 @@ async def test_member_all_and_exists(members: MemberRepository) -> None:
         await members.create(name, f"{name}@x.io", "h", "first-pet", "a")
     assert await members.exists_any() is True
     roster = await members.all()
-    assert {member["display_name"] for member in roster} == {"frank", "grace"}
+    assert [member["display_name"] for member in roster] == ["grace", "frank"]
 
 
 async def test_meta_version_bumps(meta: MetaRepository) -> None:
