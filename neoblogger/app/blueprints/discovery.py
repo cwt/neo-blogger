@@ -4,6 +4,8 @@ Tag pages are explicitly no-cache; search responses are never cached.
 Rejections flash "please use only text" and redirect home (§9).
 """
 
+from urllib.parse import quote_plus
+
 from quart import Blueprint, flash, g, redirect, render_template, request
 from werkzeug.wrappers import Response as WerkzeugResponse
 
@@ -21,6 +23,9 @@ def _page_parameters(context: AppContext) -> tuple[int, int]:
     if page < 1:
         page = 1
     per_page = max(1, context.config.posts.per_page)
+    maximum = context.config.posts.max_per_page
+    if per_page > maximum:
+        per_page = maximum
     return page, per_page
 
 
@@ -67,7 +72,7 @@ def create_discovery_blueprint(context: AppContext) -> Blueprint:
             per_page=per_page,
             has_more=total > page * per_page,
             base_url_path="/search",
-            query_suffix=f"&q={query}",
+            query_suffix=f"&q={quote_plus(query)}",
             related_tags=None,
         )
 

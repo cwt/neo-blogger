@@ -57,6 +57,25 @@ async def test_tag_page_admin_sees_drafts(app: Any) -> None:
     assert "Tagged draft" not in await body_of(await stranger.get("/tag/python"))
 
 
+async def test_search_pagination_link_encodes_query(app: Any) -> None:
+    context = app.extensions["neoblogger_context"]
+    context.config.posts.per_page = 1
+    root_client = await signup(app, "root")
+    for title in ("Sea craft one", "Sea craft two"):
+        await write_article(
+            app,
+            root_client,
+            title=title,
+            publish=True,
+            cover="https://x.io/c.webp",
+            tags="python",
+        )
+    rendered = await body_of(await root_client.get("/search?q=Sea+craft"))
+    assert "Sea craft one" in rendered
+    assert "q=Sea+craft" in rendered
+    assert "q=Sea craft" not in rendered
+
+
 async def test_search_results_and_no_cache(app: Any) -> None:
     root_client = await signup(app, "root")
     await write_article(
