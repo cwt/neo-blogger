@@ -77,6 +77,42 @@ async def test_readable_dates_rendered(app: Any) -> None:
     assert match is not None
 
 
+async def test_stale_session_keeps_response_cache(app: Any) -> None:
+    from neoblogger import build_app
+    from neoblogger.app.config import CacheConfig, RuntimeConfig
+
+    config = RuntimeConfig(
+        caching=CacheConfig(enabled=True, timeout_seconds=300, storage="memory")
+    )
+    config.database.path = app.extensions["neoblogger_context"].config.database.path
+    fresh = build_app(config)
+    context = fresh.extensions["neoblogger_context"]
+    await context.database.start()
+    stranger = fresh.test_client()
+    await stranger.get("/")
+    assert context.response_cache is not None
+    assert context.response_cache.size == 1
+    user_client = fresh.test_client()
+    await user_client.post(
+        "/signup",
+        form={
+            "display_name": "doomed",
+            "email": "doomed@example.com",
+            "password": "sturdy-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+        },
+    )
+    member = await context.members.by_display_name("doomed")
+    assert member is not None
+    await context.members.set_active(member["_id"], False)
+    # A disabled account's leftover cookie is cleared, but the shared
+    # anonymous cache must survive the request.
+    await user_client.get("/")
+    assert context.response_cache.size == 1
+    await context.database.close()
+
+
 async def test_signout_clears_response_cache(app: Any) -> None:
     from neoblogger import build_app
     from neoblogger.app.config import CacheConfig, RuntimeConfig

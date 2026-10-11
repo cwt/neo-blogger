@@ -52,6 +52,8 @@ def issue_session(member_id: str) -> None:
 
 def drop_session() -> None:
     g.destroy_session_cookie = True
+    # Explicit sign-out busts the anonymous page cache (spec §4.3).
+    g.clear_response_cache = True
     g.member = None
     g.session = None
 
@@ -239,7 +241,10 @@ def assemble(app: Quart, context: AppContext) -> None:
         member = getattr(g, "member", None)
         if getattr(g, "destroy_session_cookie", False):
             response.delete_cookie(_COOKIE_NAME)
-            # Sign-out clears the response cache (spec §4.3).
+        if getattr(g, "clear_response_cache", False):
+            # Sign-out clears the response cache (spec §4.3). Stale-cookie
+            # hygiene above only drops the cookie: a disabled account's
+            # leftover cookie must not evict cached pages for everyone.
             cache.clear()
         elif member is not None and session is not None:
             _set_session_cookie(response, context.auth.refresh(session), secure=secure)
