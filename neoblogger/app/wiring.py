@@ -22,12 +22,20 @@ from .blueprints.seo import canonical_url_for, create_seo_blueprint, jsonld_docu
 from .context import AppContext
 from .security.csrf import tokens_match
 from .security.headers import security_headers
+from .security.proxy import forwarded_base, forwarded_client
 from .security.ratelimit import FixedWindowRateLimiter
 from .services.cache import ResponseCache
 from .services.objects import legacy_url, readable_date
 from .text.minify import minify_html
 
-__all__ = ["assemble", "context_of", "drop_session", "issue_session"]
+__all__ = [
+    "assemble",
+    "context_of",
+    "drop_session",
+    "issue_session",
+    "request_base",
+    "request_client",
+]
 
 _CONTEXT_KEY = "neoblogger_context"
 _COOKIE_NAME = "neoblogger_session"
@@ -61,6 +69,34 @@ def drop_session() -> None:
 def recovery_limiter_allow(peer: str, email: str) -> bool:
     """Rate-limit gate for password recovery (Appendix B D5)."""
     return _recovery_limiter.allow(peer, email)
+
+
+def request_client() -> str:
+    """The client address for rate-limit keys (§15.8).
+
+    Honors ``X-Forwarded-For`` from a trusted adjacent hop only, so a
+    reverse proxy's clients do not share one bucket.
+    """
+    context: AppContext = g.neoblogger_context
+    peer = request.remote_addr or ""
+    return forwarded_client(
+        peer, request.headers.get("X-Forwarded-For"), context.proxy_trust
+    )
+
+
+def request_base() -> str:
+    """The fallback base URL for canonical links (§15.8, §16)."""
+    context: AppContext = g.neoblogger_context
+    peer = request.remote_addr or ""
+    return forwarded_base(
+        peer,
+        request.scheme,
+        request.host,
+        request.headers.get("X-Forwarded-Proto"),
+        request.headers.get("X-Forwarded-Host"),
+        request.url_root,
+        context.proxy_trust,
+    )
 
 
 def _set_session_cookie(response: Response, value: str, *, secure: bool) -> None:
@@ -226,7 +262,7 @@ def assemble(app: Quart, context: AppContext) -> None:
             "breadcrumbs": getattr(g, "breadcrumbs", []),
             "canonical_url": canonical_url_for(
                 context.config.application.base_url,
-                request.url_root,
+                request_base(),
                 request.path,
             ),
             "jsonld": structured,

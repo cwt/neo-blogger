@@ -6,6 +6,7 @@ from xml.sax.saxutils import escape as xml_escape
 from quart import Blueprint, Response, request
 
 from ..context import AppContext
+from ..security.proxy import forwarded_base
 from ..services.visibility import PUBLIC_FEED_FILTER
 
 __all__ = ["canonical_url_for", "create_seo_blueprint", "jsonld_document"]
@@ -57,7 +58,7 @@ def create_seo_blueprint(context: AppContext) -> Blueprint:
 
     @blueprint.route("/sitemap.xml")
     async def sitemap() -> Response:
-        base = context.config.application.base_url or request.url_root
+        base = context.config.application.base_url or _request_base(context)
         base = xml_escape(base.rstrip("/"))
         entries = [f"  <url><loc>{base}/</loc></url>"]
         page = 1
@@ -81,7 +82,7 @@ def create_seo_blueprint(context: AppContext) -> Blueprint:
 
     @blueprint.route("/robots.txt")
     async def robots() -> Response:
-        base = context.config.application.base_url or request.url_root
+        base = context.config.application.base_url or _request_base(context)
         document = (
             f"User-agent: *\nAllow: /\n\nSitemap: {base.rstrip('/')}/sitemap.xml\n"
         )
@@ -90,3 +91,17 @@ def create_seo_blueprint(context: AppContext) -> Blueprint:
         return response
 
     return blueprint
+
+
+def _request_base(context: AppContext) -> str:
+    """Fallback base URL honoring a trusted proxy (§15.8, §16)."""
+    peer = request.remote_addr or ""
+    return forwarded_base(
+        peer,
+        request.scheme,
+        request.host,
+        request.headers.get("X-Forwarded-Proto"),
+        request.headers.get("X-Forwarded-Host"),
+        request.url_root,
+        context.proxy_trust,
+    )

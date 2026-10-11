@@ -32,6 +32,7 @@ def test_defaults_from_empty_file(tmp_path: Path) -> None:
     assert config.posts.per_page == 10
     assert config.posts.max_per_page == 50
     assert config.uploads.max_body_bytes == 16_777_216
+    assert config.proxy.trusted_proxies == ["127.0.0.1", "::1"]
 
 
 def test_missing_file_is_a_fault(tmp_path: Path) -> None:
@@ -60,6 +61,8 @@ def test_documented_keys_roundtrip(tmp_path: Path) -> None:
                 "max_per_page = 60",
                 "[uploads]",
                 "max_body_bytes = 8388608",
+                "[proxy]",
+                'trusted_proxies = ["10.0.0.1"]',
             ]
         ),
         encoding="utf-8",
@@ -76,6 +79,7 @@ def test_documented_keys_roundtrip(tmp_path: Path) -> None:
     assert config.posts.per_page == 20
     assert config.posts.max_per_page == 60
     assert config.uploads.max_body_bytes == 8388608
+    assert config.proxy.trusted_proxies == ["10.0.0.1"]
 
 
 def test_wrong_typed_value_degrades_to_default(tmp_path: Path) -> None:

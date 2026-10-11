@@ -19,6 +19,7 @@ __all__ = [
     "ConfigurationError",
     "DatabaseConfig",
     "PostsConfig",
+    "ProxyConfig",
     "RuntimeConfig",
     "UploadConfig",
     "load_config",
@@ -110,6 +111,12 @@ class UploadConfig(_ScalarSection):
     max_body_bytes: int = 16_777_216
 
 
+class ProxyConfig(_ScalarSection):
+    """Reverse-proxy trust settings (``[proxy]``, spec §15.8)."""
+
+    trusted_proxies: list[str] = ["127.0.0.1", "::1"]
+
+
 class DatabaseConfig(_ScalarSection):
     """Engine settings (``[database]``)."""
 
@@ -139,6 +146,7 @@ class RuntimeConfig(BaseModel):
     caching: CacheConfig = Field(default_factory=CacheConfig)
     posts: PostsConfig = Field(default_factory=PostsConfig)
     uploads: UploadConfig = Field(default_factory=UploadConfig)
+    proxy: ProxyConfig = Field(default_factory=ProxyConfig)
 
     def resolve_base_url(self) -> str:
         """Normalize ``base_url`` to end with exactly one trailing slash."""
@@ -162,7 +170,7 @@ def _read_toml(config_path: str) -> dict[str, Any]:
 
 
 def _validate_document(document: dict[str, Any]) -> dict[str, Any]:
-    """Check top-level keys and collect the five documented sections."""
+    """Check top-level keys and collect the six documented sections."""
     unknown = sorted(set(document) - set(RuntimeConfig.model_fields))
     if unknown:
         raise ConfigurationError.fault("unrecognized section(s): " + ", ".join(unknown))
@@ -173,6 +181,7 @@ def _validate_document(document: dict[str, Any]) -> dict[str, Any]:
         ("caching", CacheConfig),
         ("posts", PostsConfig),
         ("uploads", UploadConfig),
+        ("proxy", ProxyConfig),
     ):
         raw = document.get(name, {})
         if raw is None:

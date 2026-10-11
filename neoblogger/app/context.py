@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
 from .config import RuntimeConfig
@@ -13,6 +13,7 @@ from .repositories.db import Database
 from .repositories.members import MemberRepository
 from .repositories.meta import MetaRepository
 from .repositories.objects import ObjectRepository
+from .security.proxy import ProxyTrust
 from .security.sessions import SessionCodec
 from .services.accounts import AccountService
 from .services.articles import ArticleService
@@ -60,6 +61,7 @@ class AppContext:
     objects_service: ObjectsService
     image_executor: ThreadPoolExecutor
     response_cache: ResponseCache | None = None
+    proxy_trust: ProxyTrust = field(default_factory=ProxyTrust)
 
     async def run_image(self, work: Callable[[], T]) -> T:
         """Offload CPU-bound Pillow work to the image executor (§5.6)."""
@@ -94,6 +96,7 @@ class AppContext:
             _image_runner(image_executor),
             config.uploads.max_body_bytes,
         )
+        proxy_trust = ProxyTrust(tuple(config.proxy.trusted_proxies))
         return cls(
             config=config,
             database=database,
@@ -110,4 +113,5 @@ class AppContext:
             comment_service=comment_service,
             objects_service=objects_service,
             image_executor=image_executor,
+            proxy_trust=proxy_trust,
         )

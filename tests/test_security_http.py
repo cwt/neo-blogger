@@ -3,7 +3,12 @@
 from typing import Any
 
 from neoblogger.app.security.headers import security_headers
-from neoblogger.app.security.proxy import ProxyTrust, forwarded_client, forwarded_scheme
+from neoblogger.app.security.proxy import (
+    ProxyTrust,
+    forwarded_base,
+    forwarded_client,
+    forwarded_scheme,
+)
 from neoblogger.app.security.ratelimit import FixedWindowRateLimiter
 
 
@@ -110,3 +115,31 @@ def test_proxy_scheme() -> None:
     assert forwarded_scheme("127.0.0.1", "http", None, trust) == "http"
     assert forwarded_scheme("9.9.9.9", "http", "https", trust) == "http"
     assert forwarded_scheme("127.0.0.1", "http", "ftp", trust) == "http"
+
+
+def test_forwarded_base_uses_trusted_proxy() -> None:
+    trust = ProxyTrust()
+    assert (
+        forwarded_base(
+            "127.0.0.1", "http", "internal", "https", "example.com", "http://x/", trust
+        )
+        == "https://example.com"
+    )
+
+
+def test_forwarded_base_ignores_untrusted_peer() -> None:
+    trust = ProxyTrust()
+    assert (
+        forwarded_base(
+            "9.9.9.9", "http", "h", "https", "evil.example", "http://h/", trust
+        )
+        == "http://h"
+    )
+
+
+def test_forwarded_base_without_headers_keeps_url_root() -> None:
+    trust = ProxyTrust()
+    assert (
+        forwarded_base("127.0.0.1", "http", "h", None, None, "http://h/", trust)
+        == "http://h"
+    )

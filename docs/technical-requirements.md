@@ -315,6 +315,9 @@ max_per_page = 50
 
 [uploads]
 max_body_bytes = 16777216
+
+[proxy]
+trusted_proxies = ["127.0.0.1", "::1"]  # adjacent hops whose X-Forwarded-* headers are honored (§4, §15.8)
 ```
 
 A CLI script generates a strong random `secret_key` (`secrets.token_urlsafe(32)`); the procedure is documented (spec §15.9).

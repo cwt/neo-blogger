@@ -7,7 +7,13 @@ address/scheme; untrusted peers never influence them.
 
 from dataclasses import dataclass
 
-__all__ = ["ProxyTrust", "forwarded_client", "forwarded_host", "forwarded_scheme"]
+__all__ = [
+    "ProxyTrust",
+    "forwarded_base",
+    "forwarded_client",
+    "forwarded_host",
+    "forwarded_scheme",
+]
 
 _DEFAULT_TRUSTED = ("127.0.0.1", "::1")
 
@@ -57,3 +63,24 @@ def forwarded_host(
         if candidate:
             return candidate
     return request_host
+
+
+def forwarded_base(
+    peer: str,
+    scheme: str,
+    host: str,
+    forwarded_proto: str | None,
+    forwarded_host_header: str | None,
+    url_root: str,
+    trust: ProxyTrust,
+) -> str:
+    """The fallback base URL for canonical links and sitemaps.
+
+    A trusted adjacent hop's forwarded scheme/host win; otherwise the
+    request's own URL root is used, so direct deployments are unaffected.
+    """
+    if trust.trusts(peer) and (forwarded_proto or forwarded_host_header):
+        scheme = forwarded_scheme(peer, scheme, forwarded_proto, trust)
+        host = forwarded_host(peer, host, forwarded_host_header, trust)
+        return f"{scheme}://{host}"
+    return url_root.rstrip("/")

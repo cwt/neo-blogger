@@ -39,3 +39,9 @@ max_per_page = 50
 
 [uploads]
 max_body_bytes = 16777216
+
+[proxy]
+# Adjacent hops whose X-Forwarded-For/Proto/Host headers are honored (§15.8).
+# Default is loopback only; set this to the reverse proxy's address when
+# the app runs behind one so rate-limit keys and canonical URLs are correct.
+trusted_proxies = ["127.0.0.1", "::1"]

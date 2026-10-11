@@ -125,3 +125,34 @@ async def test_signout_clears_cookie(app: Any) -> None:
     assert match is not None
     response = await client.post("/signout", form={"csrftoken": match.group(1)})
     assert response.status_code == 302
+
+
+async def test_recovery_rate_limit_uses_forwarded_client(
+    app: Any, monkeypatch: Any
+) -> None:
+    from neoblogger.app.security.proxy import ProxyTrust
+
+    context = app.extensions["neoblogger_context"]
+    monkeypatch.setattr(context, "proxy_trust", ProxyTrust(("<local>",)))
+    client = app.test_client()
+    first_hop = {"X-Forwarded-For": "203.0.113.7"}
+    for _ in range(5):
+        response = await client.post(
+            "/recover", form={"email": "ghost@x.io"}, headers=first_hop
+        )
+        assert response.status_code == 302
+    limited = await client.post(
+        "/recover", form={"email": "ghost@x.io"}, headers=first_hop
+    )
+    assert limited.status_code == 302
+    flashed = (await (await client.get("/recover")).get_data()).decode("utf-8")
+    assert "Too many attempts" in flashed
+    # A different forwarded client still has its own budget.
+    fresh = await client.post(
+        "/recover",
+        form={"email": "ghost@x.io"},
+        headers={"X-Forwarded-For": "198.51.100.9"},
+    )
+    assert fresh.status_code == 302
+    flashed = (await (await client.get("/recover")).get_data()).decode("utf-8")
+    assert "Too many attempts" not in flashed

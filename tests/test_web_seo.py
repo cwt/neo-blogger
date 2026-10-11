@@ -83,6 +83,36 @@ async def test_robots_advertises_sitemap(app: Any) -> None:
     assert "User-agent" in document
 
 
+async def test_canonical_honors_trusted_proxy(app: Any, monkeypatch: Any) -> None:
+    from neoblogger.app.security.proxy import ProxyTrust
+
+    context = app.extensions["neoblogger_context"]
+    monkeypatch.setattr(context, "proxy_trust", ProxyTrust(("<local>",)))
+    rendered = await body_of(
+        await app.test_client().get(
+            "/",
+            headers={
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-Host": "example.com",
+            },
+        )
+    )
+    assert 'href="https://example.com/"' in rendered
+
+
+async def test_canonical_ignores_untrusted_forwarded_headers(app: Any) -> None:
+    rendered = await body_of(
+        await app.test_client().get(
+            "/",
+            headers={
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-Host": "example.com",
+            },
+        )
+    )
+    assert "example.com" not in rendered
+
+
 async def test_canonical_and_site_metadata(app: Any) -> None:
     rendered = await body_of(await app.test_client().get("/"))
     assert '<link rel="canonical" href=' in rendered

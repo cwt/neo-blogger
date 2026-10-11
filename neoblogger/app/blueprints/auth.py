@@ -70,14 +70,14 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
 
     @blueprint.route("/recover", methods=["GET", "POST"])
     async def recover() -> str | Response:
-        from ..wiring import recovery_limiter_allow
+        from ..wiring import recovery_limiter_allow, request_client
 
         email = ""
         question = None
         if request.method == "POST":
             form = await request.form
             email = form.get("email", "").strip()
-            if not recovery_limiter_allow(request.remote_addr or "", email.lower()):
+            if not recovery_limiter_allow(request_client(), email.lower()):
                 await flash("Too many attempts. Try again later.", "error")
                 return redirect("/recover")
             member = await context.members.by_email(email)
