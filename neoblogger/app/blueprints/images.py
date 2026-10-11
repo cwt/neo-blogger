@@ -143,7 +143,9 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
             f"public, max-age={_YEAR_SECONDS}, immutable"
         )
         response.headers["ETag"] = f'"{etag}"'
-        response.headers["Last-Modified"] = _http_date(registry)
+        last_modified = _http_date(registry)
+        if last_modified:
+            response.headers["Last-Modified"] = last_modified
         return response
 
     @blueprint.route("/images/<hexid:object_id>/alt", methods=["POST"])
@@ -185,6 +187,6 @@ def _http_date(registry: dict[str, Any]) -> str:
     upload_time = registry["metadata"].get("upload_time", "")
     try:
         moment = datetime.datetime.fromisoformat(upload_time)
-        return moment.strftime("%a, %d %b %Y %H:%M:%S GMT")
-    except ValueError:
+    except TypeError, ValueError:
         return ""
+    return moment.strftime("%a, %d %b %Y %H:%M:%S GMT")

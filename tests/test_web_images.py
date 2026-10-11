@@ -180,6 +180,22 @@ async def test_oversized_upload_rejected_at_server_limit(app: Any) -> None:
     await context.database.close()
 
 
+async def test_serve_without_upload_time_omits_last_modified(app: Any) -> None:
+    client = await signup(app, "user")
+    object_id = await upload_image(app, client, "photo.png", tiny_png_bytes())
+    context = app.extensions["neoblogger_context"]
+
+    def null_upload_time() -> None:
+        context.database.connection.fs.files.update_one(
+            {"_id": object_id}, {"$set": {"metadata.upload_time": None}}
+        )
+
+    await context.database.run(null_upload_time)
+    response = await client.get(f"/images/{object_id}.webp")
+    assert response.status_code == 200
+    assert "Last-Modified" not in response.headers
+
+
 async def test_deletion_guard_covers_legacy_format_variant(app: Any) -> None:
     from .test_web_blog import write_article
 
