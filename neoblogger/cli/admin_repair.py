@@ -1,6 +1,6 @@
 """Promote a named member to administrator and publisher (spec §19.6).
 
-Usage: ``uv run python -m neoblogger.cli.admin_repair <display_name>``
+Usage: ``uv run python -m neoblogger.cli.admin_repair <display_name> [config_path]``
 
 The startup backfill only promotes a *lone* member; a multi-member
 database with no administrator needs this explicit repair instead of a
@@ -31,13 +31,14 @@ async def run(display_name: str, config_path: str | None = None) -> bool:
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
+    if len(sys.argv) not in (2, 3):
         print(
-            "usage: python -m neoblogger.cli.admin_repair <display_name>",
+            "usage: python -m neoblogger.cli.admin_repair <display_name> [config_path]",
             file=sys.stderr,
         )
         sys.exit(2)
-    if not asyncio.run(run(sys.argv[1])):
+    config_path = sys.argv[2] if len(sys.argv) == 3 else None
+    if not asyncio.run(run(sys.argv[1], config_path)):
         sys.exit(1)
 
 
