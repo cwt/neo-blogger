@@ -312,6 +312,7 @@ async def test_object_roundtrip_and_alt_text(
     assert registry["filename"] == "alice_photo_a1b2.webp"
     assert registry["metadata"]["owner"] == "alice"
     assert await objects.metadata("ffffffffffffffffffffffff") is None
+    assert await objects.data("ffffffffffffffffffffffff") is None
     await objects.update_alt_text(object_id, "a better alt")
     updated = await objects.metadata(object_id)
     assert updated is not None

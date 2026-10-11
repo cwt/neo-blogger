@@ -11,7 +11,7 @@ import io
 import json
 from typing import Any
 
-from neosqlite.gridfs import GridFSBucket
+from neosqlite.gridfs import GridFSBucket, NoFile
 from neosqlite.objectid import ObjectId
 
 from .db import Database
@@ -53,14 +53,18 @@ class ObjectRepository:
         return await self._database.run(insert)
 
     async def data(self, object_id: str) -> bytes | None:
-        """Download the payload by hex-string id; ``None`` when missing."""
+        """Download the payload by hex-string id; ``None`` when missing.
+
+        A single download attempt replaces the existence probe: it halves
+        the lookups and cannot race a delete between probe and fetch.
+        """
 
         def read() -> bytes | None:
-            document = self._database.connection.fs.files.find_one({"_id": object_id})
-            if document is None:
-                return None
             buffer = io.BytesIO()
-            self._bucket().download_to_stream(object_id, buffer)
+            try:
+                self._bucket().download_to_stream(object_id, buffer)
+            except NoFile:
+                return None
             return buffer.getvalue()
 
         return await self._database.run(read)
