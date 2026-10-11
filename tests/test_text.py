@@ -1,5 +1,7 @@
 """Tests for the text pipeline: markdown, sanitizer, highlighting (§7)."""
 
+import pytest
+
 from neoblogger.app.text.highlight import highlight_code_blocks
 from neoblogger.app.text.markdown import render_markdown
 from neoblogger.app.text.sanitize import sanitize_html
@@ -101,3 +103,21 @@ def test_pipeline_order_markdown_sanitize_highlight() -> None:
     final = highlight_code_blocks(cleaned)
     assert 'class="highlight"' in final
     assert "if" in final
+
+
+def test_pipeline_neutralizes_script_inside_code_fence() -> None:
+    rendered = render_markdown("```html\n<script>alert(1)</script>\n```\n")
+    final = highlight_code_blocks(sanitize_html(rendered))
+    assert "<script>" not in final
+    assert "alert" in final
+
+
+def test_highlight_survives_lexer_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    import neoblogger.app.text.highlight as highlight_module
+
+    def fail(_language: str) -> object:
+        raise RuntimeError("lexer exploded")
+
+    monkeypatch.setattr(highlight_module, "get_lexer_by_name", fail)
+    fragment = '<pre><code class="language-python">print(1)</code></pre>'
+    assert highlight_code_blocks(fragment) == fragment

@@ -11,7 +11,6 @@ import re
 from pygments import highlight as pygments_highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
-from pygments.util import ClassNotFound
 
 __all__ = ["highlight_code_blocks"]
 
@@ -28,9 +27,11 @@ def _replace(match: re.Match[str]) -> str:
     source = html.unescape(match.group("body"))
     try:
         lexer = get_lexer_by_name(language)
-    except ClassNotFound:
+        return pygments_highlight(source, lexer, _formatter)
+    except Exception:
+        # Highlighting must never break rendering: unknown languages and
+        # lexer failures on odd input leave the sanitized block as-is.
         return match.group(0)
-    return pygments_highlight(source, lexer, _formatter)
 
 
 def highlight_code_blocks(fragment: str) -> str:
