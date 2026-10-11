@@ -67,6 +67,13 @@ def test_session_rejects_garbage() -> None:
     assert codec.load("garbage") is None
 
 
+def test_session_rejects_signed_undecodable_payload() -> None:
+    codec = SessionCodec("secret-key-for-tests-0123456789abcdef")
+    signer = codec._serializer.make_signer()
+    signed = signer.sign("!!!not-base64-payload!!!").decode("utf-8")
+    assert codec.load(signed) is None
+
+
 def test_session_rejects_wrong_payload_shape() -> None:
     codec = SessionCodec("secret-key-for-tests-0123456789abcdef")
     forged = codec._serializer.dumps({"member_id": "abc123"})

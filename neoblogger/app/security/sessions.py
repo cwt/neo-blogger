@@ -8,7 +8,7 @@ re-signed on every authenticated response.
 
 from dataclasses import dataclass
 
-from itsdangerous import BadSignature, URLSafeTimedSerializer
+from itsdangerous import BadData, URLSafeTimedSerializer
 
 __all__ = ["SESSION_LIFETIME_SECONDS", "SessionCodec", "SessionData"]
 
@@ -46,7 +46,7 @@ class SessionCodec:
         )
         try:
             payload = self._serializer.loads(cookie, max_age=lifetime)
-        except BadSignature:
+        except BadData:
             return None
         match payload:
             case {"member_id": str() as member_id, "csrf_token": str() as token}:
