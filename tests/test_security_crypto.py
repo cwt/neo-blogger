@@ -84,3 +84,4 @@ def test_csrf_tokens() -> None:
     assert tokens_match(first, first) is True
     assert tokens_match(first, second) is False
     assert tokens_match("", first) is False
+    assert tokens_match("", "") is False

@@ -16,5 +16,11 @@ def new_csrf_token() -> str:
 
 
 def tokens_match(candidate: str, expected: str) -> bool:
-    """Constant-time token comparison; safe for any candidate input."""
+    """Constant-time token comparison; empty expectation never matches.
+
+    Rejecting an empty ``expected`` closes the vacuous ``"" == ""`` pass
+    that would otherwise let a token-less request through.
+    """
+    if not expected:
+        return False
     return secrets.compare_digest(candidate.encode("utf-8"), expected.encode("utf-8"))

@@ -180,13 +180,19 @@ def assemble(app: Quart, context: AppContext) -> None:
         if member is None and session is not None:
             g.destroy_session_cookie = True
         if request.method in _MUTATING_METHODS:
-            form = await request.form
-            candidate = form.get("csrftoken", "") or request.headers.get(
-                "X-CSRFToken", ""
-            )
-            expected = session.csrf_token if session is not None else ""
-            if not tokens_match(candidate, expected):
-                abort(403)
+            if session is None:
+                # No ambient authority to forge yet (signup/signin/recover):
+                # nothing to compare against, and SameSite=Lax already
+                # blunts cross-site POSTs. Authenticated mutations below
+                # always require the per-session token.
+                pass
+            else:
+                form = await request.form
+                candidate = form.get("csrftoken", "") or request.headers.get(
+                    "X-CSRFToken", ""
+                )
+                if not tokens_match(candidate, session.csrf_token):
+                    abort(403)
         if cache.active() and member is None and _is_home_page():
             version = await context.meta.content_version()
             cached = await cache.get(_cache_key(), version)
