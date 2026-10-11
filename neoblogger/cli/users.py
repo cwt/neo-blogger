@@ -26,14 +26,18 @@ from ..app.config import load_config
 from ..app.context import AppContext
 from ..app.repositories.documents import MemberDocument
 from ..app.repositories.members import MemberAlreadyExistsError
-from ..app.security.hashing import hash_secret
+from ..app.security.hashing import hash_secret, normalize_answer
 from ..app.services.accounts import SECURITY_QUESTIONS
 
 __all__ = ["build_parser", "main", "resolve_member"]
 
 
 async def resolve_member(context: AppContext, identifier: str) -> MemberDocument | None:
-    """Find a member by hex ID, display name, or email address."""
+    """Find a member by hex ID, display name, or email address.
+
+    Emails are stored lowercased, so email-shaped identifiers match
+    regardless of case; display names stay case-sensitive.
+    """
     if len(identifier) == 24:
         try:
             int(identifier, 16)
@@ -45,7 +49,8 @@ async def resolve_member(context: AppContext, identifier: str) -> MemberDocument
     by_name = await context.members.by_display_name(identifier)
     if by_name is not None:
         return by_name
-    return await context.members.by_email(identifier)
+    email = identifier.lower() if "@" in identifier else identifier
+    return await context.members.by_email(email)
 
 
 async def _run_list(args: argparse.Namespace) -> int:
@@ -148,13 +153,15 @@ async def _run_show(args: argparse.Namespace) -> int:
         await context.close()
 
 
-def _read_secret(prompt: str, non_interactive_default: str = "") -> str:
+def _read_secret(prompt: str) -> str:
+    """Read a secret from the terminal, or the first stdin line piped in.
+
+    Empty input yields an empty string so callers reject it; there is no
+    fallback value that could silently become a weak known secret.
+    """
     if sys.stdin.isatty():
         return getpass.getpass(prompt)
-    line = sys.stdin.readline().strip()
-    if line:
-        return line
-    return non_interactive_default
+    return sys.stdin.readline().strip()
 
 
 async def _run_create(args: argparse.Namespace) -> int:
@@ -162,7 +169,7 @@ async def _run_create(args: argparse.Namespace) -> int:
     try:
         await context.database.start()
         display_name: str = args.display_name.strip()
-        email: str = args.email.strip()
+        email: str = args.email.strip().lower()
         if not display_name:
             print("Display name cannot be empty.", file=sys.stderr)
             return 1
@@ -188,11 +195,8 @@ async def _run_create(args: argparse.Namespace) -> int:
 
         answer: str | None = args.answer
         if answer is None:
-            answer = _read_secret(
-                f"Security answer for '{question_code}': ",
-                non_interactive_default="default",
-            )
-        if not answer:
+            answer = _read_secret(f"Security answer for '{question_code}': ")
+        if not answer.strip():
             print("Security answer cannot be empty.", file=sys.stderr)
             return 1
 
@@ -205,7 +209,7 @@ async def _run_create(args: argparse.Namespace) -> int:
             is_publisher = bool(args.publisher)
 
         password_hash = hash_secret(password)
-        answer_hash = hash_secret(answer.strip().lower())
+        answer_hash = hash_secret(normalize_answer(answer))
         try:
             member_id = await context.members.create(
                 display_name=display_name,
@@ -362,7 +366,7 @@ async def _run_set_email(args: argparse.Namespace) -> int:
         if member is None:
             print(f"Member {args.identifier!r} not found.", file=sys.stderr)
             return 1
-        new_email: str = args.new_email.strip()
+        new_email: str = args.new_email.strip().lower()
         if not new_email:
             print("New email cannot be empty.", file=sys.stderr)
             return 1
@@ -373,13 +377,20 @@ async def _run_set_email(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 1
-        await context.members.update_credentials(
-            member["_id"],
-            email=new_email,
-            password_hash=member["password_hash"],
-            security_question_code=member["security_question_code"],
-            security_answer_hash=member["security_answer_hash"],
-        )
+        try:
+            await context.members.update_credentials(
+                member["_id"],
+                email=new_email,
+                password_hash=member["password_hash"],
+                security_question_code=member["security_question_code"],
+                security_answer_hash=member["security_answer_hash"],
+            )
+        except MemberAlreadyExistsError:
+            print(
+                f"Email {new_email!r} is already registered to another member.",
+                file=sys.stderr,
+            )
+            return 1
         print(f"Email updated to {new_email!r} for {member['display_name']!r}.")
         return 0
     finally:

@@ -175,6 +175,55 @@ async def test_create_duplicate_rejected(tmp_path: Path) -> None:
     assert await args3.func(args3) == 1
 
 
+async def test_create_lowercases_email_and_resolves_case_insensitively(
+    tmp_path: Path,
+) -> None:
+    from neoblogger.app.config import load_config
+    from neoblogger.app.context import AppContext
+    from neoblogger.cli.users import resolve_member
+
+    cfg = _make_config(tmp_path)
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "-c",
+            cfg,
+            "create",
+            "alice",
+            "Alice@Example.COM",
+            "--password",
+            "secret123",
+            "--answer",
+            "fluffy",
+        ]
+    )
+    assert await args.func(args) == 0
+    context = AppContext.build(load_config(cfg))
+    try:
+        await context.database.start()
+        stored = await context.members.by_display_name("alice")
+        assert stored is not None
+        assert stored["email"] == "alice@example.com"
+        assert await resolve_member(context, "ALICE@EXAMPLE.COM") is not None
+    finally:
+        await context.close()
+
+
+async def test_create_empty_piped_answer_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import io
+    import sys
+
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    cfg = _make_config(tmp_path)
+    parser = build_parser()
+    args = parser.parse_args(
+        ["-c", cfg, "create", "alice", "alice@example.com", "--password", "secret123"]
+    )
+    assert await args.func(args) == 1
+
+
 async def test_create_validation_failures(tmp_path: Path) -> None:
     cfg = _make_config(tmp_path)
     parser = build_parser()
