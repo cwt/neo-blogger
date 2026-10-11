@@ -184,7 +184,14 @@ class ObjectsService:
         )
         if not authorized:
             return False, []
-        using = await self._articles.covers_in_use(f"/images/{object_id}.webp")
+        # Covers may be referenced in any served format variant (.webp as
+        # stored, or a legacy .jpg/.jpeg/.png URL pasted into the editor),
+        # so guard against all of them (§10.5).
+        variants = [
+            f"/images/{object_id}.{extension}"
+            for extension in ("webp", "jpg", "jpeg", "png")
+        ]
+        using = await self._articles.covers_in_use_any(variants)
         if using:
             return False, using
         await self._objects.delete(object_id)

@@ -148,6 +148,28 @@ async def test_alt_text_inline_save(app: Any) -> None:
     assert registry["metadata"]["alt_text"] == "A better description"
 
 
+async def test_deletion_guard_covers_legacy_format_variant(app: Any) -> None:
+    from .test_web_blog import write_article
+
+    user_client = await signup(app, "user")
+    object_id = await upload_image(app, user_client, "cover.png", tiny_png_bytes())
+    await write_article(
+        app,
+        user_client,
+        title="Legacy covered",
+        publish=True,
+        cover=f"/images/{object_id}.jpg",
+    )
+    page = await user_client.get("/upload")
+    token = csrf_token_from(await body_of(page))
+    refused = await user_client.post(
+        f"/images/{object_id}/delete", form={"csrftoken": token}
+    )
+    assert refused.status_code == 302
+    context = app.extensions["neoblogger_context"]
+    assert await context.objects.metadata(object_id) is not None
+
+
 async def test_deletion_guard_refuses_article_covers(app: Any) -> None:
     from .test_web_blog import write_article
 

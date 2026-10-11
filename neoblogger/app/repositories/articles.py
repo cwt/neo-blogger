@@ -275,6 +275,17 @@ class ArticleRepository:
 
         return await self._database.run(read)
 
+    async def covers_in_use_any(self, cover_urls: list[str]) -> list[ArticleDocument]:
+        """Articles using any of the given cover URLs (format variants)."""
+
+        def read() -> list[ArticleDocument]:
+            cursor = self._database.connection.articles.find(
+                {"cover_url": {"$in": cover_urls}}
+            )
+            return [_normalize(document) for document in cursor]
+
+        return await self._database.run(read)
+
     async def rebuild_search_indexes(self) -> None:
         """Drop and recreate the three per-field FTS indexes (spec §11.4).
 
