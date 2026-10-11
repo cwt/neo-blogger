@@ -148,6 +148,38 @@ async def test_alt_text_inline_save(app: Any) -> None:
     assert registry["metadata"]["alt_text"] == "A better description"
 
 
+async def test_oversized_upload_rejected_at_server_limit(app: Any) -> None:
+    from neoblogger import build_app
+    from neoblogger.app.config import RuntimeConfig
+
+    config = RuntimeConfig()
+    config.database.path = app.extensions["neoblogger_context"].config.database.path
+    config.uploads.max_body_bytes = 1024
+    tiny = build_app(config)
+    context = tiny.extensions["neoblogger_context"]
+    await context.database.start()
+    client = tiny.test_client()
+    await client.post(
+        "/signup",
+        form={
+            "display_name": "root",
+            "email": "root@example.com",
+            "password": "sturdy-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+        },
+    )
+    page = await client.get("/upload")
+    token = csrf_token_from(await body_of(page))
+    response = await client.post(
+        "/upload",
+        form={"csrftoken": token},
+        files={"image": _storage("big.png", b"x" * 100_000)},
+    )
+    assert response.status_code == 413
+    await context.database.close()
+
+
 async def test_deletion_guard_covers_legacy_format_variant(app: Any) -> None:
     from .test_web_blog import write_article
 
