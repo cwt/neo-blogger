@@ -57,7 +57,11 @@ def create_profile_blueprint(context: AppContext) -> Blueprint:
             await flash("Profile updated.", "success")
             return redirect("/profile")
         member = await context.members.by_id(g.member["_id"])
-        assert member is not None
+        if member is None:
+            # Deleted between session resolution and this view: treat as
+            # signed out rather than crashing (asserts vanish under -O).
+            await flash("Sign in first.", "error")
+            return redirect("/signin")
         g.breadcrumbs = [
             ("Home", "/"),
             ("Profile", "/profile"),
