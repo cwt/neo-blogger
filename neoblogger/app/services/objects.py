@@ -33,22 +33,29 @@ class ImageRejectedError(Exception):
     """Raised for extension, size, or content-verification failures (§10.2)."""
 
 
+def _decoded_rgb(payload: bytes) -> Image.Image:
+    """Decode (content verification) and flatten transparency onto white.
+
+    Runs on the image executor; shared by the WebP and legacy conversions
+    (spec §10.2, §10.4).
+    """
+    image: Image.Image = Image.open(io.BytesIO(payload))
+    image.load()
+    if image.mode in ("RGBA", "LA", "PA", "P"):
+        flattened = image.convert("RGBA")
+        background = Image.new("RGB", flattened.size, (255, 255, 255))
+        background.paste(flattened, mask=flattened.split()[-1])
+        return background
+    return image.convert("RGB")
+
+
 def convert_to_webp(payload: bytes) -> bytes:
     """Decode (content verification) and convert to WebP; runs on the image executor.
 
     Transparency is flattened onto white (spec §10.2).
     """
-    image: Image.Image = Image.open(io.BytesIO(payload))
-    image.load()
-    if image.mode in ("RGBA", "LA", "PA", "P"):
-        image = image.convert("RGBA")
-        background = Image.new("RGB", image.size, (255, 255, 255))
-        background.paste(image, mask=image.split()[-1])
-        image = background
-    else:
-        image = image.convert("RGB")
     buffer = io.BytesIO()
-    image.save(buffer, format="WEBP", quality=85)
+    _decoded_rgb(payload).save(buffer, format="WEBP", quality=85)
     return buffer.getvalue()
 
 
@@ -57,17 +64,8 @@ _LEGACY_FORMATS = {"jpg": "JPEG", "jpeg": "JPEG", "png": "PNG"}
 
 def convert_legacy(payload: bytes, target: str) -> bytes:
     """Convert stored WebP to an older format for preview scrapers (§10.4)."""
-    image: Image.Image = Image.open(io.BytesIO(payload))
-    image.load()
-    if image.mode in ("RGBA", "LA", "PA", "P"):
-        image = image.convert("RGBA")
-        background = Image.new("RGB", image.size, (255, 255, 255))
-        background.paste(image, mask=image.split()[-1])
-        image = background
-    else:
-        image = image.convert("RGB")
     buffer = io.BytesIO()
-    image.save(buffer, format=_LEGACY_FORMATS[target])
+    _decoded_rgb(payload).save(buffer, format=_LEGACY_FORMATS[target])
     return buffer.getvalue()
 
 
@@ -138,10 +136,9 @@ class ObjectsService:
                 return convert_to_webp(payload)
 
             webp_payload = await self._run_image(conversion)
-            content_verified = len(webp_payload) > 0
         except Exception as error:
             raise ImageRejectedError("the file does not decode as an image") from error
-        if not content_verified:
+        if not webp_payload:
             raise ImageRejectedError("the file does not decode as an image")
         name = stored_filename(member["display_name"], original)
         now = datetime.datetime.now().isoformat(timespec="seconds")

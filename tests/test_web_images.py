@@ -27,6 +27,16 @@ def tiny_png_bytes() -> bytes:
     return buffer.getvalue()
 
 
+def tiny_gif_bytes() -> bytes:
+    import io
+
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("P", (2, 2)).save(buffer, format="GIF")
+    return buffer.getvalue()
+
+
 def _storage(filename: str, payload: bytes) -> Any:
     """A werkzeug FileStorage for the test client's multipart upload."""
     import io
@@ -68,6 +78,14 @@ async def test_upload_converts_and_serves_webp(app: Any) -> None:
     assert served.headers["Content-Type"].startswith("image/webp")
     assert "immutable" in served.headers["Cache-Control"]
     assert served.headers["ETag"].startswith('"')
+
+
+async def test_gif_upload_flattens_and_serves_webp(app: Any) -> None:
+    client = await signup(app, "root")
+    object_id = await upload_image(app, client, "anim.gif", tiny_gif_bytes())
+    served = await client.get(f"/images/{object_id}.webp")
+    assert served.status_code == 200
+    assert (await served.get_data())[:4] == b"RIFF"
 
 
 async def test_legacy_variant_conversion(app: Any) -> None:

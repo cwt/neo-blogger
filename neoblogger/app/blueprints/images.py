@@ -35,7 +35,6 @@ def _content_type_for(extension: str) -> str:
         "jpg": "image/jpeg",
         "jpeg": "image/jpeg",
         "png": "image/png",
-        "gif": "image/gif",
     }.get(extension, "application/octet-stream")
 
 
