@@ -33,7 +33,7 @@ def services(database: Database) -> dict[str, Any]:
     members = MemberRepository(database)
     comments = CommentRepository(database)
     articles = ArticleRepository(database)
-    visibility = ArticleVisibility(members, articles, comments)
+    visibility = ArticleVisibility(articles, comments)
     accounts = AccountService(members, comments, visibility)
     meta = MetaRepository(database)
     return {

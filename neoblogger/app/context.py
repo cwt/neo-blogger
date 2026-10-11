@@ -83,7 +83,7 @@ class AppContext:
         meta = MetaRepository(database)
         codec = SessionCodec(config.application.secret_key)
         auth = AuthService(codec)
-        visibility = ArticleVisibility(members, articles, comments)
+        visibility = ArticleVisibility(articles, comments)
         accounts = AccountService(members, comments, visibility)
         article_service = ArticleService(articles, members, meta, visibility)
         comment_service = CommentService(comments, articles, meta)

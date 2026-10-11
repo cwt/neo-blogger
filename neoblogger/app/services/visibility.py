@@ -13,7 +13,6 @@ from typing import Any
 from ..repositories.articles import ArticleRepository
 from ..repositories.comments import CommentRepository
 from ..repositories.documents import ArticleDocument, MemberDocument
-from ..repositories.members import MemberRepository
 
 __all__ = ["PUBLIC_FEED_FILTER", "ArticleVisibility"]
 
@@ -51,11 +50,9 @@ class ArticleVisibility:
 
     def __init__(
         self,
-        members: MemberRepository,
         articles: ArticleRepository,
         comments: CommentRepository,
     ) -> None:
-        self._members = members
         self._articles = articles
         self._comments = comments
 
