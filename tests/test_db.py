@@ -191,6 +191,16 @@ async def test_missing_tokenizer_library_falls_back(
     )
 
 
+async def test_half_configured_tokenizer_warns(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+    database = Database(DatabaseConfig(path=str(tmp_path / "half.db"), tokenizer="icu"))
+    await database.start()
+    await database.close()
+    assert any("half-configured" in record.getMessage() for record in caplog.records)
+
+
 async def test_restart_on_populated_database_is_safe(tmp_path: Any) -> None:
     """16: startup must not fail against an already-indexed database."""
 

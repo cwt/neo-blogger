@@ -220,4 +220,9 @@ class Database:
                     library,
                     error,
                 )
+        elif tokenizer or library:
+            _logger.warning(
+                "tokenizer and tokenizer_library must both be set; "
+                "ignoring the half-configured tokenizer (spec §12.2)"
+            )
         return neosqlite.Connection(path)
