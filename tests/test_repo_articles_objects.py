@@ -136,6 +136,20 @@ async def test_search_respects_visibility_filter(
     assert docs[0]["title"] == "public"
 
 
+async def test_search_excludes_non_matching_documents(
+    articles: ArticleRepository,
+) -> None:
+    await articles.create(
+        "match", "s", "body about cats", "", "a", "2026-01-01T00:00:00", [], "published"
+    )
+    await articles.create(
+        "other", "s", "body about dogs", "", "a", "2026-01-02T00:00:00", [], "published"
+    )
+    docs, total = await articles.search({"status": "published"}, "cats", 1, 10)
+    assert total == 1
+    assert [document["title"] for document in docs] == ["match"]
+
+
 async def test_substring_search_fallback(articles: ArticleRepository) -> None:
     await articles.create(
         "Haystack",

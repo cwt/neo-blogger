@@ -210,9 +210,12 @@ class ArticleRepository:
             position = {hex_id: index for index, hex_id in enumerate(ordered_ids)}
 
             def rank_key(document: dict[str, Any]) -> int:
-                return position.get(document_id(document), len(ordered_ids))
+                return position[document_id(document)]
 
-            ordered = sorted(documents, key=rank_key)
+            ranked = [
+                document for document in documents if document_id(document) in position
+            ]
+            ordered = sorted(ranked, key=rank_key)
             start = (page - 1) * per_page
             window = ordered[start : start + per_page]
             return [_normalize(document) for document in window], len(ordered)
