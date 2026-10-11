@@ -9,7 +9,7 @@ immutable (Appendix B D1).
 from ..repositories.comments import CommentRepository
 from ..repositories.documents import MemberDocument
 from ..repositories.members import MemberAlreadyExistsError, MemberRepository
-from ..security.hashing import hash_secret, verify_secret
+from ..security.hashing import hash_secret, normalize_answer, verify_secret
 from .visibility import ArticleVisibility
 
 __all__ = [
@@ -64,14 +64,26 @@ class AccountService:
         check runs inside the single insert work unit, so concurrent
         registrations cannot both win.
         """
+        display_name = display_name.strip()
+        email = email.strip().lower()
         if not display_name:
             raise ValueError("a display name is required")
         if not email:
             raise ValueError("an email address is required")
+        if not password:
+            raise ValueError("a password is required")
+        if not answer.strip():
+            raise ValueError("a security answer is required")
         if question_code not in SECURITY_QUESTIONS:
             raise ValueError("choose a security question from the list")
+        # Fast pre-checks before the costly Argon2 hashes; the insert work
+        # unit re-checks authoritatively against concurrent registrations.
+        if await self._members.by_email(email) is not None:
+            raise MemberAlreadyExistsError("email already registered")
+        if await self._members.by_display_name(display_name) is not None:
+            raise MemberAlreadyExistsError("display name already registered")
         password_hash = hash_secret(password)
-        answer_hash = hash_secret(answer.strip().lower())
+        answer_hash = hash_secret(normalize_answer(answer))
         return await self._members.create_first_or_member(
             display_name,
             email,
@@ -86,7 +98,7 @@ class AccountService:
         A disabled account raises :class:`AccountDisabledError` so callers
         show the distinct "contact an administrator" notice.
         """
-        member = await self._members.by_email(email)
+        member = await self._members.by_email(email.strip().lower())
         if member is None:
             return None
         if not verify_secret(member["password_hash"], password):
@@ -97,12 +109,14 @@ class AccountService:
 
     async def recover(self, email: str, answer: str, new_password: str) -> bool:
         """Reset a password after a matching security answer (§4.4)."""
-        member = await self._members.by_email(email)
+        member = await self._members.by_email(email.strip().lower())
         if member is None:
             return False
         if not member["active"]:
             raise AccountDisabledError("account is disabled")
-        normalized = answer.strip().lower()
+        if not new_password:
+            return False
+        normalized = normalize_answer(answer)
         if not verify_secret(member["security_answer_hash"], normalized):
             return False
         password_hash = hash_secret(new_password)
@@ -125,13 +139,20 @@ class AccountService:
         answer: str,
     ) -> None:
         """Rotate credentials; the question/answer is mandatory (§4.6)."""
+        new_email = new_email.strip().lower()
+        if not new_email:
+            raise ValueError("an email address is required")
+        if not answer.strip():
+            raise ValueError("a security answer is required")
+        if question_code not in SECURITY_QUESTIONS:
+            raise ValueError("choose a security question from the list")
         existing = await self._members.by_email(new_email)
         if existing is not None and existing["_id"] != member["_id"]:
             raise MemberAlreadyExistsError("email already registered")
         password_hash = (
             hash_secret(new_password) if new_password else member["password_hash"]
         )
-        answer_hash = hash_secret(answer.strip().lower())
+        answer_hash = hash_secret(normalize_answer(answer))
         await self._members.update_credentials(
             member["_id"],
             email=new_email,

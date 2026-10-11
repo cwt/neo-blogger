@@ -97,6 +97,67 @@ def test_tag_filter_scopes() -> None:
     assert admin_tagged["$and"][1] == {"tags": "python"}
 
 
+async def test_register_normalizes_email(services: dict[str, Any]) -> None:
+    accounts: AccountService = services["accounts"]
+    member_id, _ = await accounts.register(
+        "root", "Root@Example.COM ", "pw", "first-pet", "City"
+    )
+    member = await services["members"].by_id(member_id)
+    assert member is not None
+    assert member["email"] == "root@example.com"
+    assert await accounts.authenticate("ROOT@example.com", "pw") is not None
+
+
+async def test_register_rejects_empty_secrets(services: dict[str, Any]) -> None:
+    accounts: AccountService = services["accounts"]
+    with pytest.raises(ValueError):
+        await accounts.register("a", "a@x.io", "", "first-pet", "City")
+    with pytest.raises(ValueError):
+        await accounts.register("b", "b@x.io", "pw", "first-pet", "   ")
+    with pytest.raises(ValueError):
+        await accounts.register("   ", "c@x.io", "pw", "first-pet", "City")
+
+
+async def test_register_rejects_duplicate_display_name(
+    services: dict[str, Any],
+) -> None:
+    from neoblogger.app.repositories.members import MemberAlreadyExistsError
+
+    accounts: AccountService = services["accounts"]
+    await accounts.register("root", "root@x.io", "pw", "first-pet", "City")
+    with pytest.raises(MemberAlreadyExistsError):
+        await accounts.register("root", "other@x.io", "pw", "first-pet", "City")
+
+
+async def test_update_credentials_rejects_taken_email_atomically(
+    services: dict[str, Any],
+) -> None:
+    from neoblogger.app.repositories.members import MemberAlreadyExistsError
+
+    accounts: AccountService = services["accounts"]
+    members: MemberRepository = services["members"]
+    await accounts.register("root", "root@x.io", "pw", "first-pet", "City")
+    user_id, _ = await accounts.register("user", "user@x.io", "pw", "first-pet", "Town")
+    user = await members.by_id(user_id)
+    assert user is not None
+    with pytest.raises(MemberAlreadyExistsError):
+        await members.update_credentials(
+            user_id,
+            email="root@x.io",
+            password_hash="h",
+            security_question_code="first-pet",
+            security_answer_hash="h",
+        )
+    # Keeping one's own email still works.
+    await members.update_credentials(
+        user_id,
+        email="user@x.io",
+        password_hash="h",
+        security_question_code="first-pet",
+        security_answer_hash="h",
+    )
+
+
 async def test_first_member_becomes_admin_and_publisher(
     services: dict[str, Any],
 ) -> None:

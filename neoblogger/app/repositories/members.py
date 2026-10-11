@@ -205,10 +205,19 @@ class MemberRepository:
         security_question_code: str,
         security_answer_hash: str,
     ) -> None:
-        """Rotate credentials; display name is immutable (spec §4.6, D1)."""
+        """Rotate credentials; display name is immutable (spec §4.6, D1).
+
+        The email-uniqueness check runs inside the same executor work unit
+        as the write, so concurrent rotations cannot both win (the service
+        pre-check is only an early, non-authoritative gate).
+        """
 
         def update() -> None:
-            self._database.connection.members.update_one(
+            members = self._database.connection.members
+            existing = members.find_one({"email": email})
+            if existing is not None and str(existing["_id"]) != member_id:
+                raise MemberAlreadyExistsError("email already registered")
+            members.update_one(
                 {"_id": member_id},
                 {
                     "$set": {
