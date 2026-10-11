@@ -209,6 +209,31 @@ async def test_comment_add_and_author_delete(app: Any) -> None:
     assert "A comment." not in after
 
 
+async def test_admin_sees_disabled_member_comments(app: Any) -> None:
+    context = app.extensions["neoblogger_context"]
+    root_client = await signup(app, "root")
+    user_client = await signup(app, "user")
+    await signup(app, "other")
+    article_id = await write_article(
+        app, user_client, title="Debated", publish=True, cover="https://x.io/c.webp"
+    )
+    await comment_id_from(app, user_client, article_id)
+    target = await context.members.by_display_name("user")
+    assert target is not None
+    await context.members.set_active(target["_id"], False)
+    target = await context.members.by_id(target["_id"])
+    assert target is not None
+    await context.visibility.resync_author_articles(target)
+    # Hidden from regular members, still moderatable by administrators.
+    other_client = app.test_client()
+    await other_client.post(
+        "/signin", form={"email": "other@x.io", "password": "sturdy-password"}
+    )
+    assert (await other_client.get(f"/{article_id}")).status_code == 302
+    admin_page = await body_of(await root_client.get(f"/{article_id}"))
+    assert "A comment." in admin_page
+
+
 async def test_admin_can_delete_others_comment(app: Any) -> None:
     root_client = await signup(app, "root")
     user_client = await signup(app, "user")

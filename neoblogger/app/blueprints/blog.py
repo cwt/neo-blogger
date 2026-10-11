@@ -59,7 +59,7 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
         rendered_body = highlight_code_blocks(
             sanitize_html(render_markdown(article["body"]))
         )
-        comments = await context.comment_service.list(article)
+        comments = await context.comment_service.list(article, g.member)
         comment_rendered = {
             comment["_id"]: highlight_code_blocks(
                 sanitize_html(render_markdown(comment["text"]))

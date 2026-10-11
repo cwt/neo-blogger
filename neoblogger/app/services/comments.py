@@ -57,6 +57,15 @@ class CommentService:
         await self._meta.bump_content_version()
         return True
 
-    async def list(self, article: ArticleDocument) -> list[CommentDocument]:
-        """Visible comments: authors still active (spec §7)."""
+    async def list(
+        self, article: ArticleDocument, viewer: MemberDocument | None = None
+    ) -> list[CommentDocument]:
+        """Comments visible to ``viewer`` (spec §7, §13).
+
+        Administrators see everything, including comments by disabled
+        members, so hidden content stays moderatable; everyone else sees
+        active-author comments only.
+        """
+        if viewer is not None and viewer["administrator"]:
+            return await self._comments.for_article(article["_id"], {})
         return await self._comments.for_article(article["_id"], {"author_active": True})
