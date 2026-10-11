@@ -88,6 +88,10 @@ class ArticleVisibility:
         """The author's own articles, for profile statistics (§4.5)."""
         return await self._articles.for_author(author)
 
+    async def count_by_author(self, author: str) -> dict[str, int]:
+        """The author's published/draft totals, counted in the engine (§14)."""
+        return await self._articles.count_by_author(author)
+
     async def delete_comments_for(self, article_id: str) -> None:
         """Cascade comment deletion with its article (spec §5.4)."""
         await self._comments.delete_for_article(article_id)

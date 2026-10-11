@@ -239,6 +239,31 @@ async def test_profile_statistics(services: dict[str, Any]) -> None:
     }
 
 
+async def test_profile_statistics_counts_without_loading_bodies(
+    services: dict[str, Any],
+) -> None:
+    accounts: AccountService = services["accounts"]
+    member_id, _ = await accounts.register(
+        "root", "root@x.io", "pw", "first-pet", "City"
+    )
+    member = await services["members"].by_id(member_id)
+    assert member is not None
+    articles = services["articles"]
+    await articles.create(
+        "Pub", "s", "x" * 5000, "", "root", "2026-01-01T00:00:00", [], "published"
+    )
+    await articles.create(
+        "Draft", "s", "y" * 5000, "", "root", "2026-01-02T00:00:00", [], "draft"
+    )
+    stats = await accounts.profile_statistics(member)
+    assert stats == {
+        "published": 1,
+        "drafts": 1,
+        "comments_written": 0,
+        "contributions": 2,
+    }
+
+
 async def test_edit_resyncs_author_snapshots(services: dict[str, Any]) -> None:
     from neoblogger.app.services.articles import ArticleService
 

@@ -340,6 +340,34 @@ class ArticleRepository:
 
         return await self._database.run(read)
 
+    async def count_by_author(self, author: str) -> dict[str, int]:
+        """An author's published and draft totals in one pipeline (§4.5)."""
+
+        def read() -> dict[str, int]:
+            pipeline = [
+                {"$match": {"author": author}},
+                {
+                    "$facet": {
+                        "published": [
+                            {"$match": {"status": "published"}},
+                            {"$count": "n"},
+                        ],
+                        "draft": [{"$match": {"status": "draft"}}, {"$count": "n"}],
+                    }
+                },
+            ]
+            facet = next(
+                iter(self._database.connection.articles.aggregate(pipeline).to_list())
+            )
+            return {
+                "published": int(facet["published"][0]["n"])
+                if facet["published"]
+                else 0,
+                "draft": int(facet["draft"][0]["n"]) if facet["draft"] else 0,
+            }
+
+        return await self._database.run(read)
+
 
 def _escape_regex(term: str) -> str:
     """Escape a user term for literal regex matching."""

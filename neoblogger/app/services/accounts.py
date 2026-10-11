@@ -162,17 +162,14 @@ class AccountService:
         )
 
     async def profile_statistics(self, member: MemberDocument) -> dict[str, int]:
-        """Statistics cards for the profile page (spec §4.5)."""
-        published = 0
-        drafts = 0
-        for article in await self._visibility.articles_by_author(
-            member["display_name"]
-        ):
-            if article["status"] == "published":
-                published += 1
-            else:
-                drafts += 1
+        """Statistics cards for the profile page (spec §4.5).
+
+        Counts run in the engine; article bodies are never loaded (§14).
+        """
+        counts = await self._visibility.count_by_author(member["display_name"])
         comments_written = await self._comments.count_by_author(member["display_name"])
+        published = counts["published"]
+        drafts = counts["draft"]
         return {
             "published": published,
             "drafts": drafts,
