@@ -44,7 +44,10 @@ class MemberRepository:
         """Insert a member; hex-string ``_id`` is returned (spec §4.1)."""
 
         def insert() -> str:
-            result = self._database.connection.members.insert_one(
+            members = self._database.connection.members
+            if members.find_one({"email": email}) is not None:
+                raise MemberAlreadyExistsError("email already registered")
+            result = members.insert_one(
                 {
                     "display_name": display_name,
                     "email": email,

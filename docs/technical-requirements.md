@@ -75,7 +75,7 @@ neoblogger/
     security/          # hashing.py, sessions.py, csrf.py, headers.py, ratelimit.py, proxy.py
     web/templates/     # Jinja2 templates
     web/static/        # vendored CSS/JS/fonts/icons (self-hosted; CSP 'self')
-  cli/                 # maintenance scripts (secret gen, index rebuild, backfills)
+  cli/                 # maintenance scripts (secret gen, index rebuild, backfills, user management)
   tests/               # unit / web / e2e
   neo-blogger.toml      # example configuration
   Containerfile
@@ -166,7 +166,7 @@ Storage follows the GridFS contract (registry + chunked payload); NeoSQLite ship
 
 ### 5.7 Automatic backfills at startup (spec §19.6)
 
-Idempotent, at every start: articles missing `tags` → `[]`; articles missing `status` → infer/set; first-member promotion; single-administrator publisher self-heal. No migration framework in v1; standalone CLI scripts for exceptional conversions (legacy ID migration, metadata backfill, admin repair) under `cli/`.
+Idempotent, at every start: articles missing `tags` → `[]`; articles missing `status` → infer/set; first-member promotion; single-administrator publisher self-heal. No migration framework in v1; standalone CLI scripts for exceptional conversions (legacy ID migration, metadata backfill, admin repair) and member management (`neoblogger.cli.users`) under `cli/`.
 
 ### 5.8 Library verification checklist (spikes — EXECUTED 2026-10-02, all passed)
 
