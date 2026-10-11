@@ -1,5 +1,7 @@
 """Tests for headers, rate limiting, and proxy trust (tech-req §4, §12)."""
 
+from typing import Any
+
 from neoblogger.app.security.headers import security_headers
 from neoblogger.app.security.proxy import ProxyTrust, forwarded_client, forwarded_scheme
 from neoblogger.app.security.ratelimit import FixedWindowRateLimiter
@@ -54,6 +56,26 @@ def test_rate_limiter_window_resets() -> None:
     assert limiter.allow("k") is True
     assert limiter.allow("k") is True
     assert limiter.allow("k") is True
+
+
+def test_rate_limiter_rejects_bad_configuration() -> None:
+    import pytest
+
+    with pytest.raises(ValueError):
+        FixedWindowRateLimiter(max_attempts=3, window_seconds=0)
+    with pytest.raises(ValueError):
+        FixedWindowRateLimiter(max_attempts=0, window_seconds=60.0)
+
+
+def test_rate_limiter_bounds_memory_under_key_flood(monkeypatch: Any) -> None:
+    import neoblogger.app.security.ratelimit as ratelimit_module
+
+    monkeypatch.setattr(ratelimit_module, "_MAX_BUCKETS", 5)
+    clock = fake_clock([0.0] * 100)
+    limiter = FixedWindowRateLimiter(max_attempts=1, window_seconds=60.0, clock=clock)
+    for index in range(10):
+        assert limiter.allow(f"victim-{index}@x.io") is True
+    assert len(limiter._buckets) <= 5
 
 
 def test_rate_limiter_sweeps_old_windows() -> None:
