@@ -130,3 +130,15 @@ async def test_meta_version_bumps(meta: MetaRepository) -> None:
     assert await meta.bump_content_version() == 1
     assert await meta.bump_content_version() == 2
     assert await meta.content_version() == 2
+
+
+async def test_meta_version_self_heals_when_missing(
+    meta: MetaRepository, database: Database
+) -> None:
+    def wipe() -> None:
+        database.connection.meta.delete_many({})
+
+    await database.run(wipe)
+    assert await meta.content_version() == 0
+    assert await meta.bump_content_version() == 1
+    assert await meta.content_version() == 1
