@@ -2,8 +2,24 @@
 
 from typing import Any
 
+from neoblogger.app.blueprints.seo import canonical_url_for
+
 from .conftest import body_of
 from .test_web_blog import signup, write_article
+
+
+def test_canonical_url_for_normalizes_base() -> None:
+    assert (
+        canonical_url_for("https://x.com/", "http://localhost/", "/piece")
+        == "https://x.com/piece"
+    )
+    assert (
+        canonical_url_for("https://x.com", "http://localhost/", "/piece")
+        == "https://x.com/piece"
+    )
+    assert (
+        canonical_url_for("", "http://localhost/", "/piece") == "http://localhost/piece"
+    )
 
 
 async def test_sitemap_lists_public_articles_only(app: Any) -> None:
@@ -32,6 +48,31 @@ async def test_sitemap_lists_public_articles_only(app: Any) -> None:
     assert document.count("<loc>") == 2  # home + the one public article
     assert "<lastmod>" in document
     assert response.headers["Content-Type"].startswith("application/xml")
+
+
+async def test_sitemap_paginates_beyond_page_size(app: Any, monkeypatch: Any) -> None:
+    import neoblogger.app.blueprints.seo as seo_module
+
+    monkeypatch.setattr(seo_module, "_SITEMAP_PAGE_SIZE", 2)
+    root_client = await signup(app, "root")
+    for index in range(3):
+        await write_article(
+            app,
+            root_client,
+            title=f"Paged piece {index}",
+            publish=True,
+            cover="https://x.io/c.webp",
+        )
+    document = await body_of(await app.test_client().get("/sitemap.xml"))
+    assert document.count("<loc>") == 4  # home + all three articles
+
+
+async def test_sitemap_escapes_configured_base(app: Any, monkeypatch: Any) -> None:
+    context = app.extensions["neoblogger_context"]
+    monkeypatch.setattr(context.config.application, "base_url", "https://exa&mple.com/")
+    document = await body_of(await app.test_client().get("/sitemap.xml"))
+    assert "exa&mple.com" not in document
+    assert "exa&amp;mple.com" in document
 
 
 async def test_robots_advertises_sitemap(app: Any) -> None:

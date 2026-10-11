@@ -1,6 +1,7 @@
 """SEO surfaces: sitemap, robots, canonical, metadata, JSON-LD (spec §16)."""
 
 from typing import Any
+from xml.sax.saxutils import escape as xml_escape
 
 from quart import Blueprint, Response, request
 
@@ -14,11 +15,12 @@ _SITEMAP_HEADER = (
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 )
 _SITEMAP_FOOTER = "</urlset>\n"
+_SITEMAP_PAGE_SIZE = 1_000
 
 
 def canonical_url_for(external_base: str, request_url_root: str, path: str) -> str:
     """Canonical URL from the configured base with request fallback (§16)."""
-    base = external_base.strip() or request_url_root.rstrip("/")
+    base = external_base.strip().rstrip("/") or request_url_root.rstrip("/")
     return f"{base}{path}"
 
 
@@ -55,18 +57,23 @@ def create_seo_blueprint(context: AppContext) -> Blueprint:
 
     @blueprint.route("/sitemap.xml")
     async def sitemap() -> Response:
-        articles, _total = await context.articles.feed_page(
-            PUBLIC_FEED_FILTER, 1, 1_000
-        )
         base = context.config.application.base_url or request.url_root
-        base = base.rstrip("/")
+        base = xml_escape(base.rstrip("/"))
         entries = [f"  <url><loc>{base}/</loc></url>"]
-        for article in articles:
-            lastmod = article["created"].split("T")[0]
-            entries.append(
-                f"  <url><loc>{base}/{article['_id']}</loc>"
-                f"<lastmod>{lastmod}</lastmod></url>"
+        page = 1
+        while True:
+            batch, _total = await context.articles.feed_page(
+                PUBLIC_FEED_FILTER, page, _SITEMAP_PAGE_SIZE
             )
+            for article in batch:
+                lastmod = article["created"].split("T")[0]
+                entries.append(
+                    f"  <url><loc>{base}/{article['_id']}</loc>"
+                    f"<lastmod>{lastmod}</lastmod></url>"
+                )
+            if len(batch) < _SITEMAP_PAGE_SIZE:
+                break
+            page += 1
         xml = _SITEMAP_HEADER + "\n".join(entries) + "\n" + _SITEMAP_FOOTER
         response = Response(xml)
         response.headers["Content-Type"] = "application/xml"
