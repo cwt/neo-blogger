@@ -63,6 +63,21 @@ async def test_start_is_idempotent(database: Database) -> None:
     assert await database.run(count_meta) == 1
 
 
+async def test_concurrent_start_opens_one_connection(
+    db_config: DatabaseConfig,
+) -> None:
+    import asyncio
+
+    database = Database(db_config)
+    await asyncio.gather(*[database.start() for _ in range(10)])
+
+    def read_connection() -> object:
+        return database.connection
+
+    assert await database.run(read_connection) is database.connection
+    await database.close()
+
+
 async def test_run_before_start_raises(db_config: DatabaseConfig) -> None:
     database = Database(db_config)
 

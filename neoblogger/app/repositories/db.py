@@ -147,34 +147,44 @@ class Database:
         self._config = config
         self._executor: ThreadPoolExecutor | None = None
         self._connection: neosqlite.Connection | None = None
+        self._start_lock = asyncio.Lock()
 
     async def start(self) -> None:
-        """Open the connection on the executor thread; initialize idempotently."""
-        if self._executor is None:
-            self._executor = ThreadPoolExecutor(
-                max_workers=1, thread_name_prefix="neoblogger-db"
-            )
-        if self._connection is not None:
-            return
-        connection = await self.run(self._open_connection)
-        self._connection = connection
+        """Open the connection on the executor thread; initialize idempotently.
 
-        def initialize() -> None:
-            ensure_indexes(connection)
-            run_backfills(connection)
+        Serialized by a lock: concurrent first requests otherwise open
+        parallel connections and leak all but the last.
+        """
+        async with self._start_lock:
+            if self._executor is None:
+                self._executor = ThreadPoolExecutor(
+                    max_workers=1, thread_name_prefix="neoblogger-db"
+                )
+            if self._connection is not None:
+                return
+            connection = await self.run(self._open_connection)
+            self._connection = connection
 
-        await self.run(initialize)
+            def initialize() -> None:
+                ensure_indexes(connection)
+                run_backfills(connection)
+
+            await self.run(initialize)
 
     async def close(self) -> None:
         """Close the connection and stop the executor (idempotent)."""
-        connection = self._connection
-        if connection is not None:
-            await self.run(connection.close)
-        self._connection = None
-        executor = self._executor
-        if executor is not None:
+        async with self._start_lock:
+            connection = self._connection
+            self._connection = None
+            if connection is not None:
+                await self.run(connection.close)
+            executor = self._executor
             self._executor = None
-            executor.shutdown(wait=True)
+        if executor is not None:
+            # Shutdown blocks until queued work drains; keep it off the
+            # event loop so closing never stalls request handling.
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, executor.shutdown)
 
     async def run(self, work: Callable[[], T]) -> T:
         """Submit sync DB work to the executor; call from the event loop only."""
