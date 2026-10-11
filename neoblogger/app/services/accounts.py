@@ -12,17 +12,24 @@ from ..repositories.members import MemberAlreadyExistsError, MemberRepository
 from ..security.hashing import hash_secret, verify_secret
 from .visibility import ArticleVisibility
 
-__all__ = ["SECURITY_QUESTIONS", "AccountDisabledError", "AccountService"]
+__all__ = [
+    "SECURITY_QUESTIONS",
+    "SECURITY_QUESTION_LABELS",
+    "AccountDisabledError",
+    "AccountService",
+]
 
-SECURITY_QUESTIONS: tuple[str, ...] = (
-    "first-pet",
-    "elementary-school",
-    "birth-city",
-    "mothers-maiden-name",
-    "favorite-book",
-    "favorite-food",
-    "first-car",
-)
+SECURITY_QUESTION_LABELS: dict[str, str] = {
+    "first-pet": "What was your first pet's name?",
+    "elementary-school": "Which elementary school did you attend?",
+    "birth-city": "In which city were you born?",
+    "mothers-maiden-name": "What is your mother's maiden name?",
+    "favorite-book": "Which book is your favorite?",
+    "favorite-food": "Which food is your favorite?",
+    "first-car": "What was your first car?",
+}
+
+SECURITY_QUESTIONS: tuple[str, ...] = tuple(SECURITY_QUESTION_LABELS)
 
 
 class AccountDisabledError(Exception):

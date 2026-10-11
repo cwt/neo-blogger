@@ -70,6 +70,16 @@ def test_admin_feed_filter_broader() -> None:
     assert feed_filter(admin) == {"status": "published"}
 
 
+def test_security_question_labels_match_codes() -> None:
+    from neoblogger.app.services.accounts import (
+        SECURITY_QUESTION_LABELS,
+        SECURITY_QUESTIONS,
+    )
+
+    assert tuple(SECURITY_QUESTION_LABELS) == SECURITY_QUESTIONS
+    assert len(SECURITY_QUESTIONS) == 7
+
+
 def test_tag_filter_scopes() -> None:
     admin: dict[str, Any] = {
         "_id": "a",

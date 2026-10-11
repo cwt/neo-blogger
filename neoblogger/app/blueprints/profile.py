@@ -4,18 +4,9 @@ from quart import Blueprint, flash, g, redirect, render_template, request
 from werkzeug.wrappers import Response
 
 from ..context import AppContext
+from ..services.accounts import SECURITY_QUESTION_LABELS as QUESTION_LABELS
 
 __all__ = ["create_profile_blueprint"]
-
-QUESTION_LABELS: dict[str, str] = {
-    "first-pet": "What was your first pet's name?",
-    "elementary-school": "Which elementary school did you attend?",
-    "birth-city": "In which city were you born?",
-    "mothers-maiden-name": "What is your mother's maiden name?",
-    "favorite-book": "Which book is your favorite?",
-    "favorite-food": "Which food is your favorite?",
-    "first-car": "What was your first car?",
-}
 
 
 def create_profile_blueprint(context: AppContext) -> Blueprint:
