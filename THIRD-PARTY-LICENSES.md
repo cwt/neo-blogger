@@ -15,11 +15,15 @@ inventory lives in `docs/technical-requirements.md` §17.1.
 Icons referenced by EasyMDE font classes render as text-only buttons;
 no icon font is shipped.
 
-## Vendored in `tools/tokenizer/`
+## Subrepo at `tools/tokenizer/`
 
 | Asset | License | Source |
 |---|---|---|
-| fts5-icu-tokenizer sources (compiled in the container image by `Containerfile`) | MIT (Copyright 2025 Chaiwat Suttipongsakul) | the `fts5-icu-tokenizer` project |
+| fts5-icu-tokenizer sources, pinned at tag `v7.2.0` (compiled in the container image by `Containerfile`; pin recorded in `.hgsubstate`) | MIT (Copyright 2025 Chaiwat Suttipongsakul) | git@github.com:cwt/fts5-icu-tokenizer.git |
+
+Cloning this repository must initialize subrepos (`hg clone` fetches
+`tools/tokenizer` automatically on update); the `git` executable is
+required for that step.
 
 ## System libraries (container image)
 

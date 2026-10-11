@@ -1,0 +1,3 @@
+[submodule "tools/tokenizer"]
+	path = tools/tokenizer
+	url = git@github.com:cwt/fts5-icu-tokenizer.git
