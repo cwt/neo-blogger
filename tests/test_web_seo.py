@@ -133,6 +133,11 @@ async def test_article_metadata_and_jsonld(app: Any) -> None:
     assert '"datePublished"' in rendered
     # og image uses the legacy variant for link-preview scrapers (§16)
     assert ".jpg" in rendered or ".png" in rendered
+    # Per-article description/author override the site-wide metadata (§16).
+    assert '<meta name="description" content="Body text of Meta rich' in rendered
+    assert '<meta name="author" content="root">' in rendered
+    assert '<meta property="og:title" content="Meta rich">' in rendered
+    assert '<meta property="og:image" content="http' in rendered
 
 
 async def test_readable_dates_rendered(app: Any) -> None:
