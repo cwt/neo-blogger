@@ -17,7 +17,7 @@
   <tbody>
     {% for member in member_rows %}
     <tr>
-      <td><a href="/profile/{{ member.display_name }}">{{ member.display_name }}</a></td>
+      <td>{{ member.display_name }}</td>
       <td>{% if member.active %}Active{% else %}Disabled{% endif %}</td>
       <td>
         {% if member.administrator %}<span class="badge">Admin</span>{% endif %}

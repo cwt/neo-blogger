@@ -192,6 +192,17 @@ async def test_edit_save_failure_returns_to_edit_page(
     assert response.headers["Location"] == f"/write/{article_id}"
 
 
+async def test_author_names_have_no_dead_profile_links(app: Any) -> None:
+    user_client = await signup(app, "user")
+    article_id = await write_article(
+        app, user_client, title="Linked", publish=True, cover="https://x.io/c.webp"
+    )
+    home = await body_of(await user_client.get("/"))
+    assert 'href="/profile/user"' not in home
+    article = await body_of(await user_client.get(f"/{article_id}"))
+    assert 'href="/profile/user"' not in article
+
+
 async def test_comment_add_and_author_delete(app: Any) -> None:
     user_client = await signup(app, "user")
     article_id = await write_article(

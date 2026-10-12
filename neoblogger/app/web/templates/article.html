@@ -12,7 +12,7 @@
   <h1>{{ article.title }}</h1>
   <hr>
   <p class="subtitle">{{ article.subtitle }}</p>
-  <p class="meta">Posted by <a href="/profile/{{ article.author }}">{{ article.author }}</a> on {{ article.created | readable_date }}</p>
+  <p class="meta">Posted by {{ article.author }} on {{ article.created | readable_date }}</p>
   <p class="meta">{% for tag in article.tags %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}</p>
 </header>
 <section class="article-body">{{ rendered_body | safe }}</section>
