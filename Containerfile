@@ -46,6 +46,7 @@ COPY gunicorn.conf.py ./
 # Database file and file-cache directory live on persistent storage (§19.2).
 ENV NEOBLOGGER_CONFIG=/data/neo-blogger.toml
 VOLUME ["/data"]
+WORKDIR /data
 
 EXPOSE 8000
 
