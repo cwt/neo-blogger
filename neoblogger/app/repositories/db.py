@@ -65,7 +65,7 @@ def ensure_indexes(connection: neosqlite.Connection) -> None:
     comments.create_index([("article_id", ASCENDING), ("created", DESCENDING)])
     members = connection.members
     members.create_index("display_name", unique=True)
-    members.create_index("email")
+    members.create_index("email", unique=True)
     members.create_index(
         [("administrator", ASCENDING), ("publisher", ASCENDING), ("active", ASCENDING)]
     )

@@ -270,3 +270,15 @@ async def test_document_id_normalization() -> None:
     assert document_id({"_id": 4242}) == "4242"
     with pytest.raises(KeyError):
         document_id({})
+
+
+async def test_email_unique_index_rejects_duplicates(database: Database) -> None:
+    def seed() -> None:
+        doc1 = member_document("alice")
+        doc2 = member_document("bob")
+        doc2["email"] = doc1["email"]
+        database.connection.members.insert_one(doc1)
+        database.connection.members.insert_one(doc2)
+
+    with pytest.raises(sqlite3.IntegrityError):
+        await database.run(seed)
