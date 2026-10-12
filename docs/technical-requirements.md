@@ -200,7 +200,7 @@ Executed against the local NeoSQLite working copy on the Fedora 44 workstation (
 ## 7. Content pipeline
 
 - **Parsing**: `markdown-it-py` (CommonMark), with tables enabled.
-- **Sanitization**: every rendered fragment passes through **nh3** with an explicit allowlist — elements (headings, p, em/strong, ul/ol/li, a, img, table/thead/tbody/tr/th/td, pre, code, blockquote, hr, br, span), safe attributes (href, src, alt, title, class limited to code-language classes), and a small inline-CSS property allowlist. Raw user HTML must never bypass the pipeline (spec §15.3).
+- **Sanitization**: every rendered fragment passes through **nh3** with an explicit allowlist — elements (headings, p, em/strong, ul/ol/li, a, img, table/thead/tbody/tr/th/td, pre, code, blockquote, hr, br, span) and safe attributes (href, src, alt, title, class limited to code-language classes). Inline CSS is completely disallowed (the style property allowlist is empty, stripping all `style` attributes) for defense-in-depth and CSP compatibility. Raw user HTML must never bypass the pipeline (spec §15.3).
 - **Syntax highlighting**: **Pygments** server-side into `<pre>` blocks; CSS self-hosted; a copy button attached per block by a small vanilla-JS module (spec §6).
 - **Links**: relative URLs allowed; `rel="noopener noreferrer"` added to external targets during sanitization.
 - **Markdown editor**: vendored EasyMDE (toolbar, live preview) for the article body; a minimal lightweight toolbar for comments (same pipeline, smaller button set). The editor's image button uploads via `fetch` to the image endpoint and inserts the returned URL at the cursor (spec §5.1, §10.1).
@@ -296,7 +296,7 @@ site_title = "Neo-Blogger"
 site_author = ""
 site_description = ""
 base_url = ""            # https://example.com/ — normalized with trailing slash
-https = false            # production flag (Secure cookie + HSTS)
+https = false            # production flag: Secure cookies + HSTS (must be true in production even when TLS terminates at proxy)
 
 [database]
 path = "neo-blogger.db"
@@ -333,7 +333,7 @@ A CLI script generates a strong random `secret_key` (`secrets.token_urlsafe(32)`
 2. **Container image** (`Containerfile`, base `fedora:44`): install Python ≥ 3.14 + libicu; compile the FTS ICU tokenizer extension into the image; install Pillow-enabled image support so uploads/conversions work out of the box (spec §19.3). Reproducible build (pinned dnf packages + lockfile).
 3. **Single-process container**: the Quart app (Gunicorn + Uvicorn worker) is the only process — no wire-protocol server to supervise, no readiness wait, no inter-process trap. Entrypoint `exec`s Gunicorn with signal forwarding for clean shutdown; `/healthz` used by the Podman healthcheck (spec §19).
 4. **Volumes** (persistent, never scratch): database file (+WAL) and, when used, the file-cache directory (spec §19.2). RHEL/SELinux: volumes labeled for container use (`:Z` or `container_file_t`). The container runtime sets `WORKDIR /data` so relative paths (`neo-blogger.db`, `cache/`) resolve onto the persistent volume.
-5. **Rootless specifics**: app binds an unprivileged port (8000) inside the container; host TLS termination by the existing reverse proxy (nginx/Caddy on the metal); `PublishPort 127.0.0.1:8000:8000`.
+5. **Rootless specifics**: app binds an unprivileged port (8000) inside the container; host TLS termination by the existing reverse proxy (nginx/Caddy on the metal); `PublishPort 127.0.0.1:8000:8000`. Even though TLS terminates at the reverse proxy, production installations must set `https = true` in the configuration so session cookies receive the `Secure` attribute and HSTS headers are emitted.
 6. **systemd Quadlet**: `~/.config/containers/systemd/neo-blogger.container` user unit for rootless autostart/restart; documented in the deployment guide.
 7. **Observability**: access logs (with request duration) and error logs to stdout at info level; errors logged with full traces, users see branded pages only (spec §19.5).
 8. **Platform portability**: no platform-specific service as a hard requirement; VPS + proxy and container-platforms-with-volumes both supported (spec §19.7).
@@ -425,3 +425,6 @@ Vendored assets (Pico CSS, EasyMDE) and any shipped/system ICU libraries require
 3. ~~**Confirm NeoSQLite capabilities** via spikes S1–S5 (§5.8)~~ — **DONE 2026-10-02, all passed**; discovered constraints and the data-model ID policy are recorded in §5.1/§5.5/§5.8. The NX-27017/PyMongo route stays as the documented contingency if the executor facade proves inadequate.
 4. **Lighthouse verification tooling** for the CI runner (headless Chrome availability on the build host).
 5. **Upstream metadata nit**: `neosqlite/__init__.py` reports `__version__ = 1.5.0` while `pyproject.toml` is at 1.17.1 (stale constant — harmless at runtime; report/fix upstream when convenient).
+6. **Inline CSS policy** (§7) — **DECIDED 2026-10-12: completely disallowed**. Rendered user markup strips all `style` attributes via an empty nh3 style allowlist; deny-by-default eliminates style-injection and CSS-based data exfiltration vectors while keeping CSP strict (`'self'`).
+7. **Admin draft visibility scope on discovery pages** (§13, Appendix B D3) — **DECIDED 2026-10-12**: Per spec §13 and Appendix B D3, search results for administrators omit drafts to preserve relevance ordering (drafts surface in the dedicated `/admin/unpublished` review view per D3), while tag pages retain administrator draft visibility per §13.
+8. **CLI operator management powers** (§11.2, CLI) — **DECIDED 2026-10-12**: The `neoblogger-users` CLI tool is an out-of-band host operator tool, not subject to the peer-administrator constraints of the web UI (§11.2). Operators may demote or disable non-sole administrators from the CLI, but the sole-administrator invariant is strictly enforced across all surfaces.
