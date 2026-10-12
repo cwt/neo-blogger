@@ -68,10 +68,10 @@ async def _run_list(args: argparse.Namespace) -> int:
                 continue
             if args.role == "publisher" and not member["publisher"]:
                 continue
-            if args.role == "author" and (
-                member["administrator"] or member["publisher"]
-            ):
-                continue
+            if args.role == "author":
+                counts = await context.articles.count_by_author(member["display_name"])
+                if (counts["published"] + counts["draft"]) < 1:
+                    continue
             filtered.append(member)
 
         if args.json:

@@ -382,6 +382,34 @@ async def test_list_and_show_members(
     assert len(records) == 1
     assert records[0]["display_name"] == "alice"
 
+    # List with --role author when alice has written 0 articles
+    args_list_author = parser.parse_args(["-c", cfg, "list", "--role", "author"])
+    assert await args_list_author.func(args_list_author) == 0
+    assert "No members found." in capsys.readouterr().out
+
+    # Add an article written by alice and check --role author again
+    from neoblogger.app.config import load_config
+    from neoblogger.app.context import AppContext
+
+    context = AppContext.build(load_config(cfg))
+    await context.database.start()
+    await context.articles.create(
+        "Alice Story",
+        "",
+        "Once upon a time",
+        "",
+        "alice",
+        "2026-10-12T00:00:00",
+        [],
+        "published",
+        author_active=True,
+        author_publisher=True,
+    )
+    await context.close()
+
+    assert await args_list_author.func(args_list_author) == 0
+    assert "alice" in capsys.readouterr().out
+
     # Show as text
     args_show = parser.parse_args(["-c", cfg, "show", "alice"])
     assert await args_show.func(args_show) == 0
