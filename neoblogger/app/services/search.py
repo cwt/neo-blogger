@@ -5,16 +5,18 @@ patterns, file paths, or (for longer input) an excessive proportion of
 special characters are rejected with a "please use only text" notice.
 """
 
+import re
+
 __all__ = ["validate_query"]
 
 _SHELL_CHARS = "{};|`$()&"
 _LENGTH_THRESHOLD = 24
 _SPECIAL_LIMIT = 0.5
+_WEB_ADDRESS_RE = re.compile(r"://|\bwww\.|\.com(?=[/?#\s]|$)", re.IGNORECASE)
 
 
 def _has_web_address(term: str) -> bool:
-    lowered = term.lower()
-    return "://" in lowered or lowered.startswith("www.") or ".com" in lowered
+    return _WEB_ADDRESS_RE.search(term) is not None
 
 
 def _has_markup(term: str) -> bool:

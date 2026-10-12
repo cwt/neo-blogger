@@ -18,6 +18,8 @@ def test_minify_preserves_pre_content() -> None:
     minified = minify_html(rendered)
     assert "x   =   1\n\n\nkeep  this" in minified
     assert "<p>after</p>" in minified
+    upper = "<PRE><CODE>y   =   2\n\n\nkeep  upper</CODE></PRE>\n<p>after</p>"
+    assert "y   =   2\n\n\nkeep  upper" in minify_html(upper)
 
 
 def test_minify_preserves_blank_line_outside_pre() -> None:
@@ -29,11 +31,13 @@ def test_validate_query_accepts_plain_text() -> None:
     assert validate_query("  sqlite  ") == "sqlite"
     assert validate_query("full-text search deep dive") == "full-text search deep dive"
     assert validate_query("ภาษาไทย") == "ภาษาไทย"
+    assert validate_query("welcome.comma") == "welcome.comma"
 
 
 def test_validate_query_rejects_addresses() -> None:
     assert validate_query("https://example.com/x") is None
     assert validate_query("see www.example.com") is None
+    assert validate_query("site.com") is None
 
 
 def test_validate_query_rejects_markup() -> None:

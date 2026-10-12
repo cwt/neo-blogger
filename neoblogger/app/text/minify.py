@@ -10,7 +10,7 @@ __all__ = ["minify_html"]
 
 _BLANK_RUN = re.compile(r"\n[ \t]*\n[ \t\n]*")
 _TRAILING = re.compile(r"[ \t]+\n")
-_PROTECTED = re.compile(r"<pre\b.*?</pre>|<code\b.*?</code>", re.DOTALL)
+_PROTECTED = re.compile(r"<pre\b.*?</pre>|<code\b.*?</code>", re.DOTALL | re.IGNORECASE)
 
 
 def minify_html(html: str) -> str:
