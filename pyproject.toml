@@ -31,6 +31,7 @@ neoblogger-users = "neoblogger.cli.users:main"
 neoblogger-admin-repair = "neoblogger.cli.admin_repair:main"
 neoblogger-reindex = "neoblogger.cli.reindex:main"
 neoblogger-secret = "neoblogger.cli.secret:main"
+neoblogger-theme = "neoblogger.cli.theme:main"
 
 [dependency-groups]
 dev = [

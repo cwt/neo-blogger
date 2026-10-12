@@ -23,6 +23,9 @@ htmlcov/
 *.db-wal
 *.db-shm
 
+# Local secrets (API keys for deploy-time tooling; never commit)
+.env
+
 # Response file-cache directory (tech-req §14)
 cache/
 
