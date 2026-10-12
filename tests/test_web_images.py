@@ -177,6 +177,8 @@ async def test_oversized_upload_rejected_at_server_limit(app: Any) -> None:
     context = tiny.extensions["neoblogger_context"]
     await context.database.start()
     client = tiny.test_client()
+    page_up = await client.get("/signup")
+    token_up = csrf_token_from(await body_of(page_up))
     await client.post(
         "/signup",
         form={
@@ -185,6 +187,7 @@ async def test_oversized_upload_rejected_at_server_limit(app: Any) -> None:
             "password": "sturdy-password",
             "question_code": "first-pet",
             "answer": "Snowball",
+            "csrftoken": token_up,
         },
     )
     page = await client.get("/upload")

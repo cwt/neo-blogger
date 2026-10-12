@@ -31,6 +31,8 @@ def tiny_webp_bytes() -> bytes:
 
 async def signup(app: Any, display_name: str) -> Any:
     client = app.test_client()
+    page = await client.get("/signup")
+    token = csrf_token_from(await body_of(page))
     response = await client.post(
         "/signup",
         form={
@@ -39,6 +41,7 @@ async def signup(app: Any, display_name: str) -> Any:
             "password": "sturdy-e2e-password",
             "question_code": "first-pet",
             "answer": "Rex",
+            "csrftoken": token,
         },
     )
     assert response.status_code == 302, await body_of(response)

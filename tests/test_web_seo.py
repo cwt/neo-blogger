@@ -4,7 +4,7 @@ from typing import Any
 
 from neoblogger.app.blueprints.seo import canonical_url_for
 
-from .conftest import body_of
+from .conftest import body_of, csrf_token_from
 from .test_web_blog import signup, write_article
 
 
@@ -180,6 +180,8 @@ async def test_stale_session_keeps_response_cache(app: Any) -> None:
     assert context.response_cache is not None
     assert context.response_cache.size == 1
     user_client = fresh.test_client()
+    page_up = await user_client.get("/signup")
+    token_up = csrf_token_from(await body_of(page_up))
     await user_client.post(
         "/signup",
         form={
@@ -188,6 +190,7 @@ async def test_stale_session_keeps_response_cache(app: Any) -> None:
             "password": "sturdy-password",
             "question_code": "first-pet",
             "answer": "Snowball",
+            "csrftoken": token_up,
         },
     )
     member = await context.members.by_display_name("doomed")
@@ -212,6 +215,8 @@ async def test_signout_clears_response_cache(app: Any) -> None:
     context = fresh.extensions["neoblogger_context"]
     await context.database.start()
     client = fresh.test_client()
+    page_up = await client.get("/signup")
+    token_up = csrf_token_from(await body_of(page_up))
     await client.post(
         "/signup",
         form={
@@ -220,11 +225,10 @@ async def test_signout_clears_response_cache(app: Any) -> None:
             "password": "sturdy-password",
             "question_code": "first-pet",
             "answer": "Snowball",
+            "csrftoken": token_up,
         },
     )
     page = await client.get("/write")
-    from .conftest import csrf_token_from
-
     token = csrf_token_from(await body_of(page))
     await client.post(
         "/write",

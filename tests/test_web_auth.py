@@ -21,6 +21,8 @@ async def app(tmp_path: Path) -> AsyncIterator[Any]:
 
 async def test_signup_creates_session(app: Any) -> None:
     client = app.test_client()
+    page = await client.get("/signup")
+    token = csrf_token_from((await page.get_data()).decode("utf-8"))
     response = await client.post(
         "/signup",
         form={
@@ -29,6 +31,7 @@ async def test_signup_creates_session(app: Any) -> None:
             "password": "sturdy-password",
             "question_code": "first-pet",
             "answer": "Snowball",
+            "csrftoken": token,
         },
     )
     assert response.status_code == 302
@@ -55,7 +58,9 @@ async def test_signup_duplicate_email_flashes_error(app: Any) -> None:
         "question_code": "first-pet",
         "answer": "Snowball",
     }
-    await client.post("/signup", form=form)
+    page0 = await client.get("/signup")
+    token0 = csrf_token_from((await page0.get_data()).decode("utf-8"))
+    await client.post("/signup", form={**form, "csrftoken": token0})
     page = await client.get("/signup")
     token = csrf_token_from((await page.get_data()).decode("utf-8"))
     second = await client.post(
@@ -87,8 +92,56 @@ async def test_signup_invalid_question_refused(app: Any) -> None:
     assert response.headers["Location"] == "/signup"
 
 
+async def test_csrf_required_for_anonymous_mutations(app: Any) -> None:
+    client = app.test_client()
+    # Missing CSRF token: refused
+    resp1 = await client.post(
+        "/signup",
+        form={
+            "display_name": "anon",
+            "email": "anon@example.com",
+            "password": "sturdy-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+        },
+    )
+    assert resp1.status_code == 403
+
+    # Invalid CSRF token: refused
+    resp2 = await client.post(
+        "/signup",
+        form={
+            "display_name": "anon",
+            "email": "anon@example.com",
+            "password": "sturdy-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+            "csrftoken": "invalid-token",
+        },
+    )
+    assert resp2.status_code == 403
+
+    # Valid X-CSRFToken header: accepted
+    page = await client.get("/signup")
+    token = csrf_token_from((await page.get_data()).decode("utf-8"))
+    resp3 = await client.post(
+        "/signup",
+        form={
+            "display_name": "anon",
+            "email": "anon@example.com",
+            "password": "sturdy-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+        },
+        headers={"X-CSRFToken": token},
+    )
+    assert resp3.status_code == 302
+
+
 async def test_csrf_required_for_authenticated_mutations(app: Any) -> None:
     client = app.test_client()
+    page = await client.get("/signup")
+    token = csrf_token_from((await page.get_data()).decode("utf-8"))
     await client.post(
         "/signup",
         form={
@@ -97,6 +150,7 @@ async def test_csrf_required_for_authenticated_mutations(app: Any) -> None:
             "password": "sturdy-password",
             "question_code": "first-pet",
             "answer": "Snowball",
+            "csrftoken": token,
         },
     )
     # Authenticated but without the per-session token: refused.
@@ -108,6 +162,8 @@ async def test_signout_clears_cookie(app: Any) -> None:
     import re
 
     client = app.test_client()
+    page = await client.get("/signup")
+    token = csrf_token_from((await page.get_data()).decode("utf-8"))
     await client.post(
         "/signup",
         form={
@@ -116,6 +172,7 @@ async def test_signout_clears_cookie(app: Any) -> None:
             "password": "sturdy-password",
             "question_code": "first-pet",
             "answer": "Snowball",
+            "csrftoken": token,
         },
     )
     page = await client.get("/signup")
@@ -136,13 +193,19 @@ async def test_recovery_rate_limit_uses_forwarded_client(
     monkeypatch.setattr(context, "proxy_trust", ProxyTrust(("<local>",)))
     client = app.test_client()
     first_hop = {"X-Forwarded-For": "203.0.113.7"}
+    page = await client.get("/recover")
+    token = csrf_token_from((await page.get_data()).decode("utf-8"))
     for _ in range(5):
         response = await client.post(
-            "/recover", form={"email": "ghost@x.io"}, headers=first_hop
+            "/recover",
+            form={"email": "ghost@x.io", "csrftoken": token},
+            headers=first_hop,
         )
         assert response.status_code == 302
     limited = await client.post(
-        "/recover", form={"email": "ghost@x.io"}, headers=first_hop
+        "/recover",
+        form={"email": "ghost@x.io", "csrftoken": token},
+        headers=first_hop,
     )
     assert limited.status_code == 302
     flashed = (await (await client.get("/recover")).get_data()).decode("utf-8")
@@ -150,7 +213,7 @@ async def test_recovery_rate_limit_uses_forwarded_client(
     # A different forwarded client still has its own budget.
     fresh = await client.post(
         "/recover",
-        form={"email": "ghost@x.io"},
+        form={"email": "ghost@x.io", "csrftoken": token},
         headers={"X-Forwarded-For": "198.51.100.9"},
     )
     assert fresh.status_code == 302
@@ -160,15 +223,25 @@ async def test_recovery_rate_limit_uses_forwarded_client(
 
 async def test_signin_rate_limit_blocks_after_attempts(app: Any) -> None:
     client = app.test_client()
+    page = await client.get("/signin")
+    token = csrf_token_from((await page.get_data()).decode("utf-8"))
     for _ in range(5):
         response = await client.post(
             "/signin",
-            form={"email": "victim@example.com", "password": "wrong-password"},
+            form={
+                "email": "victim@example.com",
+                "password": "wrong-password",
+                "csrftoken": token,
+            },
         )
         assert response.status_code == 302
     limited = await client.post(
         "/signin",
-        form={"email": "victim@example.com", "password": "wrong-password"},
+        form={
+            "email": "victim@example.com",
+            "password": "wrong-password",
+            "csrftoken": token,
+        },
     )
     assert limited.status_code == 302
     flashed = (await (await client.get("/signin")).get_data()).decode("utf-8")
@@ -177,6 +250,8 @@ async def test_signin_rate_limit_blocks_after_attempts(app: Any) -> None:
 
 async def test_password_recovery_invalidates_existing_session(app: Any) -> None:
     client = app.test_client()
+    page_up = await client.get("/signup")
+    token_up = csrf_token_from((await page_up.get_data()).decode("utf-8"))
     await client.post(
         "/signup",
         form={
@@ -185,6 +260,7 @@ async def test_password_recovery_invalidates_existing_session(app: Any) -> None:
             "password": "original-password",
             "question_code": "first-pet",
             "answer": "Snowball",
+            "csrftoken": token_up,
         },
     )
     # Alice is signed in; profile succeeds
@@ -193,12 +269,15 @@ async def test_password_recovery_invalidates_existing_session(app: Any) -> None:
 
     # Password recovery happens (e.g. account compromised/reset)
     recover_client = app.test_client()
+    page_rec = await recover_client.get("/recover")
+    token_rec = csrf_token_from((await page_rec.get_data()).decode("utf-8"))
     recover_page = await recover_client.post(
         "/recover",
         form={
             "email": "alice@example.com",
             "answer": "Snowball",
             "new_password": "brand-new-password",
+            "csrftoken": token_rec,
         },
     )
     assert recover_page.status_code == 302
@@ -212,6 +291,8 @@ async def test_password_recovery_invalidates_existing_session(app: Any) -> None:
 
 async def test_profile_edit_invalidates_stale_sessions(app: Any) -> None:
     client_a = app.test_client()
+    page_up = await client_a.get("/signup")
+    token_up = csrf_token_from((await page_up.get_data()).decode("utf-8"))
     await client_a.post(
         "/signup",
         form={
@@ -220,6 +301,7 @@ async def test_profile_edit_invalidates_stale_sessions(app: Any) -> None:
             "password": "sturdy-password",
             "question_code": "first-pet",
             "answer": "Snowball",
+            "csrftoken": token_up,
         },
     )
     stale_cookie = ""

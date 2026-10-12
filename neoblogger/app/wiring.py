@@ -21,7 +21,7 @@ from .blueprints.images import create_images_blueprint
 from .blueprints.profile import create_profile_blueprint
 from .blueprints.seo import canonical_url_for, create_seo_blueprint, jsonld_document
 from .context import AppContext
-from .security.csrf import tokens_match
+from .security.csrf import new_csrf_token, tokens_match
 from .security.headers import security_headers
 from .security.proxy import ProxyTrust, forwarded_base, forwarded_client
 from .security.ratelimit import FixedWindowRateLimiter
@@ -43,6 +43,7 @@ __all__ = [
 
 _CONTEXT_KEY = "neoblogger_context"
 _COOKIE_NAME = "neoblogger_session"
+_CSRF_COOKIE_NAME = "neoblogger_csrf"
 _COOKIE_MAX_AGE = 24 * 60 * 60
 _MUTATING_METHODS = frozenset({"POST", "PUT", "DELETE"})
 
@@ -263,20 +264,23 @@ def assemble(app: Quart, context: AppContext) -> None:
             g.destroy_session_cookie = True
             g.session = None
             session = None
+        if session is not None:
+            g.csrf_token = session.csrf_token
+        else:
+            anon_csrf = request.cookies.get(_CSRF_COOKIE_NAME)
+            if not anon_csrf:
+                anon_csrf = new_csrf_token()
+                g.set_anon_csrf_cookie = anon_csrf
+            g.csrf_token = anon_csrf
+
         if request.method in _MUTATING_METHODS:
-            if session is None:
-                # No ambient authority to forge yet (signup/signin/recover):
-                # nothing to compare against, and SameSite=Lax already
-                # blunts cross-site POSTs. Authenticated mutations below
-                # always require the per-session token.
-                pass
-            else:
-                form = await request.form
-                candidate = form.get("csrftoken", "") or request.headers.get(
-                    "X-CSRFToken", ""
-                )
-                if not tokens_match(candidate, session.csrf_token):
-                    abort(403)
+            form = await request.form
+            candidate = form.get("csrftoken", "") or request.headers.get(
+                "X-CSRFToken", ""
+            )
+            expected = g.csrf_token
+            if not tokens_match(candidate, expected):
+                abort(403)
         if cache.active() and member is None and _is_home_page():
             version = await context.meta.content_version()
             hit = await cache.get(_cache_key(), version)
@@ -341,12 +345,27 @@ def assemble(app: Quart, context: AppContext) -> None:
             cache.clear()
         elif getattr(g, "set_session_cookie", None):
             _set_session_cookie(response, g.set_session_cookie, secure=secure)
+            response.delete_cookie(_CSRF_COOKIE_NAME)
             if "text/html" in response.headers.get("Content-Type", ""):
                 response.headers["Cache-Control"] = "no-store"
         elif member is not None and session is not None:
             _set_session_cookie(response, context.auth.refresh(session), secure=secure)
+            response.delete_cookie(_CSRF_COOKIE_NAME)
             if "text/html" in response.headers.get("Content-Type", ""):
                 response.headers["Cache-Control"] = "no-store"
+        if (
+            getattr(g, "set_anon_csrf_cookie", None)
+            and session is None
+            and not getattr(g, "set_session_cookie", None)
+        ):
+            response.set_cookie(
+                _CSRF_COOKIE_NAME,
+                g.set_anon_csrf_cookie,
+                max_age=_COOKIE_MAX_AGE,
+                httponly=True,
+                samesite="Lax",
+                secure=secure,
+            )
         if request.path.startswith("/search") or request.path.startswith("/tag/"):
             response.headers["Cache-Control"] = "no-cache"
         if (

@@ -16,7 +16,14 @@ SIGNUP = {
 async def signup(app: Any, display_name: str) -> Any:
     """Register (auto-signs-in) and return the test client."""
     client = app.test_client()
-    form = {**SIGNUP, "display_name": display_name, "email": f"{display_name}@x.io"}
+    page = await client.get("/signup")
+    token = csrf_token_from(await body_of(page))
+    form = {
+        **SIGNUP,
+        "display_name": display_name,
+        "email": f"{display_name}@x.io",
+        "csrftoken": token,
+    }
     response = await client.post("/signup", form=form)
     assert response.status_code == 302, await body_of(response)
     return client
