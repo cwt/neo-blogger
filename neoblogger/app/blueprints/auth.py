@@ -4,7 +4,12 @@ from quart import Blueprint, flash, redirect, render_template, request
 from werkzeug.wrappers import Response
 
 from ..context import AppContext
-from ..services.accounts import SECURITY_QUESTION_LABELS as QUESTION_LABELS
+from ..services.accounts import (
+    SECURITY_QUESTION_LABELS as QUESTION_LABELS,
+)
+from ..services.accounts import (
+    AccountDisabledError,
+)
 
 __all__ = ["create_auth_blueprint"]
 
@@ -59,6 +64,12 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
                 member = await context.accounts.authenticate(
                     email, form.get("password", "")
                 )
+            except AccountDisabledError:
+                await flash(
+                    "This account is disabled. Please contact an administrator.",
+                    "error",
+                )
+                return redirect("/signin")
             except Exception as error:
                 await flash(str(error), "error")
                 return redirect("/signin")
@@ -100,11 +111,24 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
             if member is None:
                 await flash("No account found with that email address.", "error")
                 return redirect("/recover")
+            if not member["active"]:
+                await flash(
+                    "This account is disabled. Please contact an administrator.",
+                    "error",
+                )
+                return redirect("/recover")
             question = QUESTION_LABELS.get(member["security_question_code"])
             if form.get("answer"):
-                ok = await context.accounts.recover(
-                    email, form.get("answer", ""), form.get("new_password", "")
-                )
+                try:
+                    ok = await context.accounts.recover(
+                        email, form.get("answer", ""), form.get("new_password", "")
+                    )
+                except AccountDisabledError:
+                    await flash(
+                        "This account is disabled. Please contact an administrator.",
+                        "error",
+                    )
+                    return redirect("/recover")
                 if ok:
                     await flash("Password reset. You can now sign in.", "success")
                     return redirect("/signin")

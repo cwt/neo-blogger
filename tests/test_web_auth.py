@@ -337,3 +337,88 @@ async def test_profile_edit_invalidates_stale_sessions(app: Any) -> None:
     )
     assert resp_b.status_code == 302
     assert resp_b.headers["Location"] == "/signin"
+
+
+async def test_signin_disabled_account_shows_administrator_notice(
+    app: Any,
+) -> None:
+    context = app.extensions["neoblogger_context"]
+    # Register member
+    client = app.test_client()
+    page_up = await client.get("/signup")
+    token_up = csrf_token_from((await page_up.get_data()).decode("utf-8"))
+    await client.post(
+        "/signup",
+        form={
+            "display_name": "disabled_user",
+            "email": "disabled@example.com",
+            "password": "sturdy-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+            "csrftoken": token_up,
+        },
+    )
+    # Disable the member
+    member = await context.members.by_email("disabled@example.com")
+    assert member is not None
+    await context.members.set_active(member["_id"], False)
+
+    # Attempt to sign in
+    signin_client = app.test_client()
+    page_in = await signin_client.get("/signin")
+    token_in = csrf_token_from((await page_in.get_data()).decode("utf-8"))
+    resp = await signin_client.post(
+        "/signin",
+        form={
+            "email": "disabled@example.com",
+            "password": "sturdy-password",
+            "csrftoken": token_in,
+        },
+    )
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/signin"
+    flashed = (await (await signin_client.get("/signin")).get_data()).decode("utf-8")
+    assert "This account is disabled. Please contact an administrator." in flashed
+
+
+async def test_recovery_disabled_account_shows_administrator_notice(
+    app: Any,
+) -> None:
+    context = app.extensions["neoblogger_context"]
+    # Register member
+    client = app.test_client()
+    page_up = await client.get("/signup")
+    token_up = csrf_token_from((await page_up.get_data()).decode("utf-8"))
+    await client.post(
+        "/signup",
+        form={
+            "display_name": "rec_disabled_user",
+            "email": "rec_disabled@example.com",
+            "password": "sturdy-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+            "csrftoken": token_up,
+        },
+    )
+    # Disable the member
+    member = await context.members.by_email("rec_disabled@example.com")
+    assert member is not None
+    await context.members.set_active(member["_id"], False)
+
+    # Attempt to recover password
+    recover_client = app.test_client()
+    page_rec = await recover_client.get("/recover")
+    token_rec = csrf_token_from((await page_rec.get_data()).decode("utf-8"))
+    resp = await recover_client.post(
+        "/recover",
+        form={
+            "email": "rec_disabled@example.com",
+            "answer": "Snowball",
+            "new_password": "brand-new-password",
+            "csrftoken": token_rec,
+        },
+    )
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/recover"
+    flashed = (await (await recover_client.get("/recover")).get_data()).decode("utf-8")
+    assert "This account is disabled. Please contact an administrator." in flashed
