@@ -117,6 +117,8 @@ async def test_canonical_and_site_metadata(app: Any) -> None:
     rendered = await body_of(await app.test_client().get("/"))
     assert '<link rel="canonical" href=' in rendered
     assert '<meta name="description"' in rendered
+    assert '<meta name="author"' in rendered
+    assert 'rel="icon"' in rendered
     assert "application/ld+json" in rendered
     assert '"WebSite"' in rendered
 
