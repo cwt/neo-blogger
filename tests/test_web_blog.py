@@ -289,3 +289,34 @@ async def test_delete_article_cascades_comments(app: Any) -> None:
     assert await context.articles.by_id(article_id) is None
     assert await context.comments.count_by_author("user") == 0
     assert await context.meta.content_version() == version_before + 1
+
+
+async def test_draft_article_accessible_only_by_author_and_admin(app: Any) -> None:
+    root_client = await signup(app, "root")
+    author_client = await signup(app, "author")
+    other_client = await signup(app, "other")
+    anon_client = app.test_client()
+
+    draft_id = await write_article(
+        app, author_client, title="Draft Secrets", publish=False
+    )
+
+    # Anonymous user is redirected
+    anon_resp = await anon_client.get(f"/{draft_id}")
+    assert anon_resp.status_code == 302
+    assert anon_resp.headers["Location"] == "/"
+
+    # Other non-author non-admin user is redirected
+    other_resp = await other_client.get(f"/{draft_id}")
+    assert other_resp.status_code == 302
+    assert other_resp.headers["Location"] == "/"
+
+    # Author can view draft
+    author_page = await author_client.get(f"/{draft_id}")
+    assert author_page.status_code == 200
+    assert "Draft Secrets" in await body_of(author_page)
+
+    # Admin can view draft
+    admin_page = await root_client.get(f"/{draft_id}")
+    assert admin_page.status_code == 200
+    assert "Draft Secrets" in await body_of(admin_page)

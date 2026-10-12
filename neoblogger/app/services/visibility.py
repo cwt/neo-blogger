@@ -58,6 +58,12 @@ class ArticleVisibility:
 
     def can_view(self, viewer: MemberDocument | None, article: ArticleDocument) -> bool:
         """Whether ``viewer`` may open ``article``'s page (§13)."""
+        if article.get("status") != "published":
+            if viewer is None:
+                return False
+            return bool(
+                viewer["administrator"] or viewer["display_name"] == article["author"]
+            )
         if viewer is not None and viewer["administrator"]:
             return True
         author_is_active_publisher = (
