@@ -2,6 +2,8 @@
 
 from typing import Any
 
+import pytest
+
 from .conftest import body_of, csrf_token_from
 from .test_web_blog import signup
 
@@ -96,6 +98,19 @@ async def test_legacy_variant_conversion(app: Any) -> None:
     body = await legacy.get_data()
     assert body[:8] == b"\xff\xd8\xff\xe0\x00\x10JFIF"[:8] or body[:2] == b"\xff\xd8"
     assert legacy.headers["Content-Type"].startswith("image/jpeg")
+
+
+async def test_legacy_variant_oversized_serves_webp_content_type(
+    app: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from neoblogger.app.blueprints import images as images_module
+
+    monkeypatch.setattr(images_module, "_CONVERSION_CAP", 1)
+    client = await signup(app, "root")
+    object_id = await upload_image(app, client, "photo.png", tiny_png_bytes())
+    legacy = await client.get(f"/images/{object_id}.jpg")
+    assert legacy.status_code == 200
+    assert legacy.headers["Content-Type"] == "image/webp"
 
 
 async def test_conditional_request_returns_304(app: Any) -> None:

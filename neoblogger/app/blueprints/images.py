@@ -124,16 +124,22 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
         if payload is None:
             _abort(404)
         target = ""
+        content_type = _content_type_for(extension)
         if extension != "webp":
             target = "jpg" if extension in ("jpg", "jpeg") else "png"
-        if target and len(payload) <= _CONVERSION_CAP:
-            payload = await context.run_image(partial(convert_legacy, payload, target))
+        if target:
+            if len(payload) <= _CONVERSION_CAP:
+                payload = await context.run_image(
+                    partial(convert_legacy, payload, target)
+                )
+            else:
+                content_type = "image/webp"
         etag = registry["md5"]
         if request.if_none_match and etag in request.if_none_match:
             response = WerkzeugResponse("", status=304)
         else:
             response = WerkzeugResponse(payload)
-            response.headers["Content-Type"] = _content_type_for(extension)
+            response.headers["Content-Type"] = content_type
         response.headers["Cache-Control"] = (
             f"public, max-age={_YEAR_SECONDS}, immutable"
         )
