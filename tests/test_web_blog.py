@@ -355,3 +355,26 @@ async def test_draft_deletion_is_author_only(app: Any) -> None:
     )
     assert allowed.status_code == 302
     assert await context.articles.by_id(draft_id) is None
+
+
+async def test_profile_recent_published_capped_at_five(app: Any) -> None:
+    user_client = await signup(app, "writer")
+    # Write 6 published articles
+    for i in range(6):
+        await write_article(
+            app,
+            user_client,
+            title=f"Post number {i}",
+            publish=True,
+            cover=f"https://x.io/c{i}.webp",
+        )
+    # Write 1 draft
+    await write_article(app, user_client, title="Draft Work", publish=False)
+    profile_html = await body_of(await user_client.get("/profile"))
+    # Draft is rendered
+    assert "Draft Work" in profile_html
+    # Exactly 5 of the 6 published posts are rendered on profile
+    rendered_published = [
+        f"Post number {i}" for i in range(6) if f"Post number {i}" in profile_html
+    ]
+    assert len(rendered_published) == 5

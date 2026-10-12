@@ -9,6 +9,9 @@ from ..services.accounts import SECURITY_QUESTION_LABELS as QUESTION_LABELS
 __all__ = ["create_profile_blueprint"]
 
 
+_RECENT_PUBLISHED_LIMIT = 5
+
+
 def create_profile_blueprint(context: AppContext) -> Blueprint:
     blueprint = Blueprint("profile", __name__)
 
@@ -21,9 +24,10 @@ def create_profile_blueprint(context: AppContext) -> Blueprint:
         posts = await context.visibility.articles_by_author(g.member["display_name"])
         drafts = [post for post in posts if post["status"] == "draft"]
         published = [post for post in posts if post["status"] == "published"]
+        recent_published = published[:_RECENT_PUBLISHED_LIMIT]
         g.breadcrumbs = [("Home", "/"), ("Profile", "/profile")]
         return await render_template(
-            "profile.html", stats=stats, posts=drafts + published
+            "profile.html", stats=stats, posts=drafts + recent_published
         )
 
     @blueprint.route("/profile/edit", methods=["GET", "POST"])
