@@ -1,5 +1,7 @@
 """Tests for the text pipeline: markdown, sanitizer, highlighting (§7)."""
 
+from pathlib import Path
+
 import pytest
 
 from neoblogger.app.text.highlight import highlight_code_blocks
@@ -103,6 +105,19 @@ def test_pipeline_order_markdown_sanitize_highlight() -> None:
     final = highlight_code_blocks(cleaned)
     assert 'class="highlight"' in final
     assert "if" in final
+
+
+def test_pygments_stylesheet_styles_emitted_classes() -> None:
+    css = (
+        Path(__file__).resolve().parent.parent
+        / "neoblogger"
+        / "app"
+        / "web"
+        / "static"
+        / "pygments.css"
+    ).read_text(encoding="utf-8")
+    for selector in (".highlight", ".highlight .k", ".highlight .nf"):
+        assert selector in css
 
 
 def test_pipeline_neutralizes_script_inside_code_fence() -> None:

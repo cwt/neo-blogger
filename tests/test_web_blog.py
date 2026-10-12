@@ -220,6 +220,15 @@ async def test_comment_add_and_author_delete(app: Any) -> None:
     assert "A comment." not in after
 
 
+async def test_article_page_links_pygments_stylesheet(app: Any) -> None:
+    user_client = await signup(app, "user")
+    article_id = await write_article(
+        app, user_client, title="Styled", publish=True, cover="https://x.io/c.webp"
+    )
+    rendered = await body_of(await user_client.get(f"/{article_id}"))
+    assert "/static/pygments.css" in rendered
+
+
 async def test_admin_sees_disabled_member_comments(app: Any) -> None:
     context = app.extensions["neoblogger_context"]
     root_client = await signup(app, "root")
