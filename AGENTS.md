@@ -1,7 +1,7 @@
 # AGENTS.md — working instructions for coding agents in this repository
 
 Project: **Neo-Blogger** — a self-hosted, article-first, long-form publishing platform.
-Current phase: specification + spike verification complete; implementation not yet scaffolded.
+Current phase: implementation complete; production hardening and security fixes.
 
 ## 1. Where the truth lives — read before writing code
 

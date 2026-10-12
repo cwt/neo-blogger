@@ -108,7 +108,7 @@ Blueprints are **thin controllers**: no business rules, no storage access. Rule:
 - Framework: Quart; Jinja2 templates with autoescape on; strict-undefined mode in development.
 - URL scheme (public surface): home `/`, article `/{slug-or-id}` (id-based; confirm with data model §5.1), tag `/tag/{name}`, search `/search?q=...&page=N`, auth pages, profile `/profile`, write `/write`, upload `/upload`, admin `/admin`, review `/admin/unpublished`, images `/images/{id}.{ext}`, sitemap `/sitemap.xml`, robots `/robots.txt`, health `/healthz`.
 - All state-changing routes require an authenticated, active member and CSRF token (spec §13).
-- Rate limiting: fixed-window counter keyed by (client IP, normalized email) on the password-recovery endpoint (spec Appendix B D5); counters live in-process, never fatal on failure.
+- Rate limiting: fixed-window counter keyed by (client IP, normalized email) on the sign-in and password-recovery endpoints (spec Appendix B D5); counters live in-process, never fatal on failure.
 - Proxy trust: parse `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host` **only** from the adjacent hop; trusted-hop allowlist configurable, default loopback (spec §15.8). Canonical URLs and rate-limit keys use the reconstructed client address/scheme.
 - Error handlers for 404, 403, 500 render branded pages; log full traceback server-side (spec §3.11, §19.5).
 
@@ -212,7 +212,7 @@ Executed against the local NeoSQLite working copy on the Fedora 44 workstation (
 
 - **Password hashing**: Argon2id (`argon2-cffi`), parameters at least the library defaults, recorded in the hash string; plaintext never stored or logged (spec §4.1, §15.1).
 - **Security answer**: normalized to lowercase, hashed with Argon2id as well; never displayed back (spec §4.1).
-- **Sessions**: signed cookie (`itsdangerous` URL-safe serializer) with payload `{member_id, issued_at, csrf_token}`; `max_age` 24 h **sliding** — re-signed on every authenticated response; `HttpOnly`, `SameSite=Lax`, `Secure` when production flag is set (spec §4.3).
+- **Sessions**: signed cookie (`itsdangerous` URL-safe serializer) with payload `{member_id, session_version, csrf_token}`; `max_age` 24 h **sliding** — re-signed on every authenticated response; `HttpOnly`, `SameSite=Lax`, `Secure` when production flag is set (spec §4.3). `session_version` is tracked on the member document and incremented on credential rotation (password recovery and profile updates), invalidating existing sessions.
 - Sign-out clears the cookie and clears/bumps the response cache (spec §4.3).
 - **CSRF**: per-session random token (stored inside the signed cookie payload); rendered as a hidden input in every mutating form and as `<meta name="csrf-token">` for client scripts; enforced by middleware on all POST/PUT/DELETE (spec §15.2).
 - Password recovery: explicit "no account found" message retained (accepted trade-off, spec Appendix B D2) **plus** rate limiting (§4). Disabled accounts cannot recover via this flow.
@@ -261,14 +261,14 @@ Response headers on every response (spec §15.4):
 
 | Header | Value |
 |---|---|
-| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` (JSON-LD script blocks are non-executable and unaffected) |
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self' 'nonce-<request-nonce>'; style-src 'self'; img-src 'self' data: blob: https:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` (W3C CSP Level 2/3 does not exempt `<script type="application/ld+json">` from `script-src`; a per-request nonce permits the JSON-LD block) |
 | `X-Content-Type-Options` | `nosniff` |
 | `X-XSS-Protection` | `1; mode=block` (legacy filter, per spec) |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` |
 | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains; preload` (production) |
 | `Cross-Origin-Opener-Policy` | `same-origin` |
 
-Also: CSRF enforcement (§8), upload hardening (§9), per-request member re-resolution (§3.3), proxy-trust rules (§4), recovery rate limiting (§4), mandatory production secret (§3.4).
+Also: CSRF enforcement (§8), upload hardening (§9), per-request member re-resolution (§3.3), proxy-trust rules (§4), sign-in and recovery rate limiting (§4), session invalidation on credential rotation via `session_version` (§8), mandatory production secret (§3.4).
 
 ---
 
