@@ -18,6 +18,10 @@ from ..text.sanitize import sanitize_html
 __all__ = ["HexIdConverter", "create_blog_blueprint", "render_home_page"]
 
 
+_COVER_PICKER_LIMIT = 48
+"""Recent uploads offered by the editor cover picker (spec §5.1)."""
+
+
 def _page_parameters(context: AppContext) -> tuple[int, int]:
     """Clamped (page, per_page) from the query string (spec §14, §18)."""
     try:
@@ -123,7 +127,13 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
                 return redirect(f"/{saved_id}")
             return redirect("/profile")
         g.breadcrumbs = [("Home", "/"), ("Write", "/write")]
-        return await render_template("write.html", article=article)
+        owner = None if g.member["administrator"] else g.member["display_name"]
+        cover_images, _total = await context.objects.list_for(
+            owner, 1, _COVER_PICKER_LIMIT
+        )
+        return await render_template(
+            "write.html", article=article, cover_images=cover_images
+        )
 
     @blueprint.route("/articles/<hexid:article_id>/delete", methods=["POST"])
     async def delete_article(article_id: str) -> WerkzeugResponse:

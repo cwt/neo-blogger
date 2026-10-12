@@ -269,3 +269,18 @@ async def test_deletion_guard_refuses_article_covers(app: Any) -> None:
     )
     assert allowed.status_code == 302
     assert await context.objects.metadata(object_id) is None
+
+
+async def test_cover_picker_lists_uploads(app: Any) -> None:
+    user_client = await signup(app, "user")
+    object_id = await upload_image(app, user_client, "cover.png", tiny_png_bytes())
+    rendered = await body_of(await user_client.get("/write"))
+    assert f'data-cover-url="/images/{object_id}.webp"' in rendered
+    assert f"<code>/images/{object_id}.webp</code>" in rendered
+
+
+async def test_cover_picker_empty_state(app: Any) -> None:
+    user_client = await signup(app, "user")
+    rendered = await body_of(await user_client.get("/write"))
+    assert "upload an image" in rendered
+    assert "data-cover-url" not in rendered

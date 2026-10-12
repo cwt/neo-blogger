@@ -203,6 +203,7 @@ Executed against the local NeoSQLite working copy on the Fedora 44 workstation (
 - **Syntax highlighting**: **Pygments** server-side into `<pre>` blocks; CSS self-hosted; a copy button attached per block by a small vanilla-JS module (spec §6).
 - **Links**: relative URLs allowed; `rel="noopener noreferrer"` added to external targets during sanitization.
 - **Markdown editor**: vendored EasyMDE (toolbar, live preview) for the article body; a minimal lightweight toolbar for comments (same pipeline, smaller button set). The editor's image button uploads via `fetch` to the image endpoint and inserts the returned URL at the cursor (spec §5.1, §10.1).
+- **Cover picker**: the editor's cover field offers the member's recent uploads (48) in a collapsible thumbnail gallery; one click fills the field, and without JS the printed URLs are copied by hand (spec §5.1).
 - All editor/JS libraries are vendored into `web/static/` — no runtime CDN dependency; CSP stays `self` (§12.1).
 
 ---

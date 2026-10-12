@@ -249,6 +249,26 @@ main table {
 
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .gallery-item img { width: 100%; height: auto; }
+/* Editor cover picker: thumbnail buttons fill the cover field (§5.1). */
+.cover-picker { margin-bottom: 1rem; }
+.cover-picker summary { cursor: pointer; }
+.cover-picker button[data-cover-url] {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: var(--pico-border-width) solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  background: none;
+  cursor: pointer;
+}
+.cover-picker button[data-cover-url][aria-pressed="true"] {
+  outline: var(--pico-outline-width) solid var(--pico-primary-border);
+  outline-offset: 2px;
+}
+.cover-picker button[data-cover-url] img {
+  border-radius: calc(var(--pico-border-radius) * 0.75);
+}
 /* Deploy-time theme banner: one illustration per page family (§10).
    Absent without a generated theme, leaving the themeless default.
    The page title overlays the art on a bottom gradient scrim so text

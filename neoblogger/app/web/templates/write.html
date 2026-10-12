@@ -13,6 +13,21 @@
   <input id="subtitle" name="subtitle" required maxlength="300" value="{{ article.subtitle if article else '' }}">
   <label for="cover_url">Cover image URL {% if not article %}(optional while drafting){% endif %}</label>
   <input id="cover_url" name="cover_url" value="{{ article.cover_url if article else '' }}">
+  <details class="cover-picker">
+    <summary>Choose from uploaded images</summary>
+    <div class="gallery">
+      {% for image in cover_images %}
+      <article class="gallery-item">
+        <button type="button" data-cover-url="/images/{{ image.id }}.webp" aria-pressed="false" aria-label="Use this image as cover">
+          <img src="/images/{{ image.id }}.webp" alt="{{ image.metadata.alt_text }}" width="320" height="180" loading="lazy">
+        </button>
+        <p class="meta"><code>/images/{{ image.id }}.webp</code></p>
+      </article>
+      {% else %}
+      <p>No uploads yet — <a href="/upload">upload an image</a> first.</p>
+      {% endfor %}
+    </div>
+  </details>
   <label for="tags">Tags (comma-separated)</label>
   <input id="tags" name="tags" value="{{ article.tags | join(', ') if article else '' }}">
   <label for="body">Body</label>

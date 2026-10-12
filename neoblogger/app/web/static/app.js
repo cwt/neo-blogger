@@ -109,6 +109,23 @@ if (bodyField && typeof EasyMDE !== "undefined") {
   // Progressive enhancement fallback: the plain textarea still works.
 }
 
+// Cover picker on the editor page (spec §5.1): choosing an uploaded
+// image fills the cover field. Without JS the URLs printed under each
+// thumbnail are copied by hand.
+const coverField = document.getElementById("cover_url");
+if (coverField) {
+  const pickerButtons = document.querySelectorAll("[data-cover-url]");
+  pickerButtons.forEach((control) => {
+    control.addEventListener("click", () => {
+      coverField.value = control.dataset.coverUrl || "";
+      coverField.focus();
+      pickerButtons.forEach((other) => {
+        other.setAttribute("aria-pressed", other === control ? "true" : "false");
+      });
+    });
+  });
+}
+
 // Navigation menu (mobile dropdown): close after choosing an entry or
 // tapping outside the panel, so the next page never opens with it stuck.
 const navToggle = document.querySelector('.site-header details.nav-menu');
