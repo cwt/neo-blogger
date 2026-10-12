@@ -4,14 +4,16 @@
 
 FROM fedora:44 AS build
 
-RUN dnf -y install python3.14 python3.14-pip gcc libicu-devel libicu zig \
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
+RUN dnf -y install python3.14 python3.14-pip gcc sqlite-devel libicu-devel libicu zig \
     && dnf clean all
 
 WORKDIR /build
 COPY pyproject.toml README.md LICENSE uv.lock ./
 COPY neoblogger/ ./neoblogger/
-RUN python3.14 -m pip install --no-cache-dir build \
-    && python3.14 -m build --wheel --outdir /dist
+RUN python3.14 -m pip install --no-cache-dir build hatchling \
+    && python3.14 -m build --wheel --no-isolation --outdir /dist
 
 # Compile the ICU tokenizer extension for Thai/CJK search (spec §12.2, §19.3).
 COPY tools/tokenizer/ /build/tokenizer/
@@ -22,6 +24,8 @@ RUN zig build -Doptimize=ReleaseFast \
     && mkdir -p /out/include && cp src/c_includes.h /out/include/ || true
 
 FROM fedora:44 AS runtime
+
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
 RUN dnf -y install python3.14 python3.14-pip libicu \
     && dnf clean all
