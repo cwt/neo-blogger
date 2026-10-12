@@ -200,29 +200,33 @@ async def _run_create(args: argparse.Namespace) -> int:
             print("Security answer cannot be empty.", file=sys.stderr)
             return 1
 
-        is_first = not await context.members.exists_any()
-        if is_first:
-            is_admin = True if args.admin is None else bool(args.admin)
-            is_publisher = True if args.publisher is None else bool(args.publisher)
-        else:
-            is_admin = bool(args.admin)
-            is_publisher = bool(args.publisher)
-
         password_hash = hash_secret(password)
         answer_hash = hash_secret(normalize_answer(answer))
         try:
-            member_id = await context.members.create(
+            member_id, promoted = await context.members.create_first_or_member(
                 display_name=display_name,
                 email=email,
                 password_hash=password_hash,
                 security_question_code=question_code,
                 security_answer_hash=answer_hash,
-                administrator=is_admin,
-                publisher=is_publisher,
             )
         except MemberAlreadyExistsError as err:
             print(f"Error: {err}", file=sys.stderr)
             return 1
+
+        is_admin = promoted
+        is_publisher = promoted
+        if not promoted:
+            if args.admin and args.publisher:
+                await context.members.promote_admin(member_id)
+                is_admin = True
+                is_publisher = True
+            elif args.admin:
+                await context.members.set_administrator(member_id, True)
+                is_admin = True
+            elif args.publisher:
+                await context.members.set_publisher(member_id, True)
+                is_publisher = True
 
         if is_admin or is_publisher:
             await context.meta.bump_content_version()

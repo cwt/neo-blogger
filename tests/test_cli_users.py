@@ -123,6 +123,93 @@ async def test_create_subsequent_member_regular(tmp_path: Path) -> None:
         await context.close()
 
 
+async def test_create_first_member_forces_admin_and_publisher(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_config(tmp_path)
+    parser = build_parser()
+
+    # Even with --no-admin and --no-publisher, spec §2 mandates
+    # first member is admin & publisher
+    args = parser.parse_args(
+        [
+            "-c",
+            cfg,
+            "create",
+            "alice",
+            "alice@example.com",
+            "--password",
+            "secret123",
+            "--answer",
+            "fluffy",
+            "--no-admin",
+            "--no-publisher",
+        ]
+    )
+    assert await args.func(args) == 0
+
+    context = AppContext.build(load_config(cfg))
+    try:
+        await context.database.start()
+        alice = await resolve_member(context, "alice")
+        assert alice is not None
+        assert alice["administrator"] is True
+        assert alice["publisher"] is True
+    finally:
+        await context.close()
+
+
+async def test_create_subsequent_member_with_explicit_roles(
+    tmp_path: Path,
+) -> None:
+    cfg = _make_config(tmp_path)
+    parser = build_parser()
+
+    # Create first member
+    args1 = parser.parse_args(
+        [
+            "-c",
+            cfg,
+            "create",
+            "alice",
+            "alice@example.com",
+            "--password",
+            "secret123",
+            "--answer",
+            "fluffy",
+        ]
+    )
+    assert await args1.func(args1) == 0
+
+    # Create subsequent member with --admin and --publisher
+    args2 = parser.parse_args(
+        [
+            "-c",
+            cfg,
+            "create",
+            "bob",
+            "bob@example.com",
+            "--password",
+            "secret456",
+            "--answer",
+            "rover",
+            "--admin",
+            "--publisher",
+        ]
+    )
+    assert await args2.func(args2) == 0
+
+    context = AppContext.build(load_config(cfg))
+    try:
+        await context.database.start()
+        bob = await resolve_member(context, "bob")
+        assert bob is not None
+        assert bob["administrator"] is True
+        assert bob["publisher"] is True
+    finally:
+        await context.close()
+
+
 async def test_create_duplicate_rejected(tmp_path: Path) -> None:
     cfg = _make_config(tmp_path)
     parser = build_parser()
