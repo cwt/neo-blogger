@@ -205,6 +205,17 @@ class MemberRepository:
     async def set_publisher(self, member_id: str, publisher: bool) -> None:
         await self.set_flag(member_id, "publisher", publisher)
 
+    async def promote_admin(self, member_id: str) -> None:
+        """Promote to administrator and publisher in a single update."""
+
+        def update() -> None:
+            self._database.connection.members.update_one(
+                {"_id": member_id},
+                {"$set": {"administrator": True, "publisher": True}},
+            )
+
+        await self._database.run(update)
+
     async def update_credentials(
         self,
         member_id: str,

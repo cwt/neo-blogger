@@ -22,8 +22,11 @@ async def run(display_name: str, config_path: str | None = None) -> bool:
         if member is None:
             print(f"No member named {display_name!r}.", file=sys.stderr)
             return False
-        await context.members.set_administrator(member["_id"], True)
-        await context.members.set_publisher(member["_id"], True)
+        await context.members.promote_admin(member["_id"])
+        member["administrator"] = True
+        member["publisher"] = True
+        await context.visibility.resync_author_articles(member)
+        await context.meta.bump_content_version()
         print(f"Promoted {display_name!r} to administrator and publisher.")
         return True
     finally:

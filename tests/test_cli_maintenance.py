@@ -37,11 +37,36 @@ async def test_admin_repair_honors_config_path(tmp_path: Path) -> None:
         )
         # Two members: no lone-member promotion; strip admin to simulate.
         await context.members.set_administrator(first, False)
+        # user creates an article before repair (not publisher yet)
+        article_id = await context.articles.create(
+            "User Story",
+            "sub",
+            "body",
+            "",
+            "user",
+            "2026-10-12T00:00:00",
+            ["test"],
+            "published",
+            author_active=True,
+            author_publisher=False,
+        )
+        article_before = await context.articles.by_id(article_id)
+        assert article_before is not None
+        assert article_before["author_publisher"] is False
+
+        version_before = await context.meta.content_version()
         assert await admin_repair_run("user", cfg) is True
         repaired = await context.members.by_id(second)
         assert repaired is not None
         assert repaired["administrator"] is True
         assert repaired["publisher"] is True
+
+        # Snapshots resynced and content version bumped
+        article_after = await context.articles.by_id(article_id)
+        assert article_after is not None
+        assert article_after["author_publisher"] is True
+        assert await context.meta.content_version() == version_before + 1
+
         assert await admin_repair_run("ghost", cfg) is False
     finally:
         await context.close()
