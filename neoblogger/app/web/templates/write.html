@@ -21,7 +21,7 @@
         <button type="button" data-cover-url="/images/{{ image.id }}.webp" aria-pressed="false" aria-label="Use this image as cover">
           <img src="/images/{{ image.id }}.webp" alt="{{ image.metadata.alt_text }}" width="320" height="180" loading="lazy">
         </button>
-        <p class="meta"><code>/images/{{ image.id }}.webp</code></p>
+        <p class="meta"><code>{{ image.id }}.webp</code></p>
       </article>
       {% else %}
       <p>No uploads yet — <a href="/upload">upload an image</a> first.</p>

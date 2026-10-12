@@ -276,7 +276,7 @@ async def test_cover_picker_lists_uploads(app: Any) -> None:
     object_id = await upload_image(app, user_client, "cover.png", tiny_png_bytes())
     rendered = await body_of(await user_client.get("/write"))
     assert f'data-cover-url="/images/{object_id}.webp"' in rendered
-    assert f"<code>/images/{object_id}.webp</code>" in rendered
+    assert f"<code>{object_id}.webp</code>" in rendered
 
 
 async def test_cover_picker_empty_state(app: Any) -> None:
