@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Upload image · {{ site_title }}{% endblock %}
+{% block hero_title %}Upload image{% endblock %}
 {% block content %}
-<h1>Upload image</h1>
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
   <label for="image">Image file</label>

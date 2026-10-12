@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Password recovery · {{ site_title }}{% endblock %}
+{% block hero_title %}Password recovery{% endblock %}
 {% block content %}
-<h1>Password recovery</h1>
 <form method="post">
   {{ csrf_field() }}
   <label for="email">Email address</label>

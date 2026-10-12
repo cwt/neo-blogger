@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ article.title }} · {{ site_title }}{% endblock %}
+{% block hero_title %}{{ article.title }}{% endblock %}
+{% block hero_sub %}<p class="subtitle">{{ article.subtitle }}</p>{% endblock %}
 {% block description %}{{ g.article.description }}{% endblock %}
 {% block author %}{{ g.article.author }}{% endblock %}
 {% block head %}
@@ -17,9 +19,6 @@
 {% endif %}
 <header class="article-header">
   {% if article.cover_url %}<img class="cover" src="{{ article.cover_url }}" alt="{{ article.title }}" width="1200" height="400" fetchpriority="high">{% endif %}
-  <h1>{{ article.title }}</h1>
-  <hr>
-  <p class="subtitle">{{ article.subtitle }}</p>
   <p class="meta">Posted by {{ article.author }} on {{ article.created | readable_date }}</p>
   <p class="meta">{% for tag in article.tags %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}</p>
 </header>

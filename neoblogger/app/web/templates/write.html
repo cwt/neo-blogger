@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{% if article %}Edit{% else %}Write{% endif %} · {{ site_title }}{% endblock %}
+{% block hero_title %}{% if article %}Edit article{% else %}Write a new article{% endif %}{% endblock %}
 {% block head %}
   <link rel="stylesheet" href="/static/easymde.min.css">
 {% endblock %}
 {% block content %}
-<h1>{% if article %}Edit article{% else %}Write a new article{% endif %}</h1>
 <form method="post">
   <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
   <label for="title">Title</label>

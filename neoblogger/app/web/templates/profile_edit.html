@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Edit profile · {{ site_title }}{% endblock %}
+{% block hero_title %}Edit profile{% endblock %}
 {% block content %}
-<h1>Edit profile</h1>
 <p class="meta">Display names are permanent and cannot be changed.</p>
 <form method="post">
   <input type="hidden" name="csrftoken" value="{{ csrf_token }}">

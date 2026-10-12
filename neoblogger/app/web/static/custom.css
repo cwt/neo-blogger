@@ -249,10 +249,33 @@ main table {
 
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .gallery-item img { width: 100%; height: auto; }
-/* Deploy-time theme banner: one 21:9 illustration per page family (§10).
-   Absent without a generated theme, leaving the themeless default. */
-.theme-banner { margin: 0 0 1rem; }
-.theme-banner img { width: 100%; aspect-ratio: 21 / 9; object-fit: cover; border-radius: var(--pico-border-radius); }
+/* Deploy-time theme banner: one illustration per page family (§10).
+   Absent without a generated theme, leaving the themeless default.
+   The page title overlays the art on a bottom gradient scrim so text
+   stays readable over any cover, dark or light. */
+.theme-banner { position: relative; margin: 0 0 1rem; }
+.theme-banner img {
+  display: block;
+  width: 100%;
+  height: clamp(150px, 30vh, 300px);
+  object-fit: cover;
+  border-radius: var(--pico-border-radius);
+}
+.theme-caption {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 3rem 1.25rem 1rem;
+  border-radius: 0 0 var(--pico-border-radius) var(--pico-border-radius);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.68), transparent);
+}
+.theme-caption h1,
+.theme-caption p {
+  color: #fff;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+}
+.theme-caption h1 { margin-bottom: 0.25rem; }
+.theme-caption p { margin-bottom: 0; }
 .theme-credit { color: var(--pico-muted-color); }
 /* Copy affordance overlays its own code block (spec §6). */
 div.highlight { position: relative; }

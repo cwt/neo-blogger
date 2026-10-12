@@ -57,7 +57,14 @@
   {% if theme_banner %}
   <figure class="theme-banner">
     <img src="{{ theme_banner }}" alt="" width="1568" height="672" fetchpriority="high">
+    <figcaption class="theme-caption">
+      <h1>{{ self.hero_title() }}</h1>
+      {{ self.hero_sub() }}
+    </figcaption>
   </figure>
+  {% else %}
+  <h1>{% block hero_title %}{% endblock %}</h1>
+  {% block hero_sub %}{% endblock %}
   {% endif %}
   {% block content %}{% endblock %}
 </main>

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Sign up · {{ site_title }}{% endblock %}
+{% block hero_title %}Sign up{% endblock %}
+{% block hero_sub %}<p>Read and share new perspectives.</p>{% endblock %}
 {% block content %}
-<h1>Sign up</h1>
-<p>Read and share new perspectives.</p>
 {% if questions %}
 <form method="post">
   {{ csrf_field() }}

@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Search results · {{ site_title }}{% endblock %}
+{% block hero_title %}Search results for “{{ query }}”{% endblock %}
 {% block content %}
-<header class="feed-header">
-  <h1>Search results for “{{ query }}”</h1>
-</header>
 <section class="feed">{% include "_feed_cards.html" %}</section>
 {% endblock %}
