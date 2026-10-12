@@ -97,6 +97,11 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
             await flash("No such member.", "error")
             return redirect("/admin")
         granted = not target["publisher"]
+        if not granted and target["administrator"]:
+            stats = await context.members.dashboard()
+            if stats.get("admins", 0) <= 1:
+                await flash("The sole administrator must remain a publisher.", "error")
+                return redirect("/admin")
         await context.members.set_publisher(member_id, granted)
         target["publisher"] = granted
         await context.visibility.resync_author_articles(target)

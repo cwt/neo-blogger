@@ -131,6 +131,22 @@ async def test_promotion_is_one_way(app: Any) -> None:
     assert promoted["administrator"] is True
 
 
+async def test_sole_admin_cannot_have_publisher_revoked(app: Any) -> None:
+    context = app.extensions["neoblogger_context"]
+    root_client = await signup(app, "root")
+    root = await context.members.by_display_name("root")
+    assert root is not None
+    assert root["publisher"] is True
+    # Attempt to revoke publisher from sole admin
+    response = await toggle(app, root_client, root["_id"], "publisher")
+    assert response.status_code == 302
+    flashed = await body_of(await root_client.get("/admin"))
+    assert "sole administrator must remain a publisher" in flashed.lower()
+    still = await context.members.by_display_name("root")
+    assert still is not None
+    assert still["publisher"] is True
+
+
 async def test_review_page_lists_non_publisher_articles(app: Any) -> None:
     root_client = await signup(app, "root")
     user_client = await signup(app, "user")

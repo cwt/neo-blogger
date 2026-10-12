@@ -111,6 +111,19 @@ def backfill_first_admin(connection: neosqlite.Connection) -> None:
     _logger.info("promoted the only member to administrator and publisher")
 
 
+def backfill_sole_admin_publisher(connection: neosqlite.Connection) -> None:
+    """Ensure a sole administrator is always a publisher (spec §2, tech-req §3.4)."""
+    members = connection.members
+    if members.count_documents({"administrator": True}) == 1:
+        admin = members.find_one({"administrator": True})
+        if admin is not None and not admin.get("publisher", False):
+            members.update_one({"_id": admin["_id"]}, {"$set": {"publisher": True}})
+            _logger.info(
+                "restored publisher status on sole administrator %r",
+                admin.get("display_name"),
+            )
+
+
 def backfill_author_snapshots(connection: Any) -> None:
     """Recompute denormalized author visibility snapshots (§13, §19.6).
 
@@ -136,6 +149,7 @@ def run_backfills(connection: Any) -> None:
     """Run every idempotent startup backfill (tech-req §5.7)."""
     backfill_articles(connection)
     backfill_first_admin(connection)
+    backfill_sole_admin_publisher(connection)
     backfill_author_snapshots(connection)
     ensure_content_version(connection)
 

@@ -168,6 +168,29 @@ async def test_backfill_first_admin_skips_multi_member(
     assert all(member["administrator"] is False for member in after)
 
 
+async def test_backfill_sole_admin_publisher_restores_publisher(
+    database: Database,
+) -> None:
+    def seed() -> None:
+        members = database.connection.members
+        doc_alice = member_document("alice")
+        doc_alice["administrator"] = True
+        doc_alice["publisher"] = False
+        doc_bob = member_document("bob")
+        members.insert_one(doc_alice)
+        members.insert_one(doc_bob)
+
+    await database.run(seed)
+
+    def backfill_and_read() -> dict[str, object]:
+        run_backfills(database.connection)
+        return database.connection.members.find_one({"display_name": "alice"})
+
+    repaired = await database.run(backfill_and_read)
+    assert bool(repaired["administrator"]) is True
+    assert bool(repaired["publisher"]) is True
+
+
 async def test_missing_tokenizer_library_falls_back(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
