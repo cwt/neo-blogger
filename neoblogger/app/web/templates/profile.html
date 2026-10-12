@@ -22,7 +22,7 @@
         {% if article.status == 'draft' %}<span class="badge">Draft</span>{% endif %}
         {% if article.subtitle %}<br><small>{{ article.subtitle }}</small>{% endif %}
       </td>
-      <td>{{ article.created }}</td>
+      <td>{{ article.created | readable_date }}</td>
       <td class="row-actions">
         <a href="/write/{{ article._id }}">Edit</a>
         <form action="/articles/{{ article._id }}/delete" method="post" class="inline-form">

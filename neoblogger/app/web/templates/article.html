@@ -28,7 +28,7 @@
   <h2>Comments</h2>
   {% for comment in comments %}
   <article class="comment">
-    <p class="meta">{{ comment.author }} · {{ comment.created }}</p>
+    <p class="meta">{{ comment.author }} · {{ comment.created | readable_date }}</p>
     <div>{{ comment_rendered[comment._id] | safe }}</div>
     {% if member and (member.administrator or member.display_name == comment.author) %}
     <form action="/comments/{{ comment._id }}/delete" method="post" class="inline-form">
