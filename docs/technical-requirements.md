@@ -75,7 +75,7 @@ neoblogger/
     security/          # hashing.py, sessions.py, csrf.py, headers.py, ratelimit.py, proxy.py
     web/templates/     # Jinja2 templates
     web/static/        # vendored CSS/JS/fonts/icons (self-hosted; CSP 'self')
-  cli/                 # maintenance scripts (secret gen, index rebuild, backfills, user management)
+  cli/                 # maintenance scripts (secret gen, index rebuild, backfills, user management, theme artwork generation)
   tests/               # unit / web / e2e
   neo-blogger.toml      # example configuration
   Containerfile
@@ -239,6 +239,7 @@ Executed against the local NeoSQLite working copy on the Fedora 44 workstation (
 - **Accessibility**: alt text everywhere, accessible names on icon-only controls, sequential heading hierarchy, visible focus, contrast — audited to ≥ 95/100 (spec §17, §20).
 - Performance practices: explicit `width`/`height` on feed images, lazy-loading except first card, high fetch-priority cover on article pages, per-page banner preload hints (spec §6).
 - Fonts: self-hosted woff2 with `font-display` swap and size-matched fallback definitions to avoid CLS (spec §17). Exact typeface pairing is a pending design decision (see §19 Open items).
+- **Theme artwork (deploy-time, optional)**: one 21:9 banner per page family (home, article, tag, search, auth, profile, write, upload, admin, error), generated once with Agnes Image 2.5 by `neoblogger.cli.theme generate` (key from `AGNES_API_KEY` env or `./.env`, never committed) and stored as ordinary `theme`-owned image objects; the app resolves the set once at startup and serves it through `/images/`, so runtime stays offline. Without a generated set every page renders the themeless default. An article's own cover wins over its page banner. Output ownership (operator, Agnes ToS §8.1) is recorded in `THIRD-PARTY-LICENSES.md`; the footer credit satisfies the §6.1 AI-content disclosure whenever a theme is active.
 
 ---
 

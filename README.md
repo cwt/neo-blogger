@@ -48,3 +48,7 @@ and run `systemctl --user daemon-reload && systemctl --user start neo-blogger`.
 
 Maintenance scripts (offline, idempotent): `uv run python -m neoblogger.cli.secret |
 python -m neoblogger.cli.reindex | python -m neoblogger.cli.admin_repair <display-name>`.
+
+Optional theme artwork (deploy-time, once): put `AGNES_API_KEY` in `./.env`
+(never committed), then `uv run python -m neoblogger.cli.theme generate`.
+Without a generated set every page renders the themeless default.

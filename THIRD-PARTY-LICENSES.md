@@ -25,6 +25,15 @@ Cloning this repository must initialize subrepos (`hg clone` fetches
 `tools/tokenizer` automatically on update); the `git` executable is
 required for that step.
 
+## Deploy-time generated assets
+
+| Asset | Provenance |
+|---|---|
+| Theme banners (`theme_*.webp`, one per page family, generated once at deploy time by `neoblogger.cli.theme`) | AI-generated with Agnes Image 2.5; Output owned by the operator under Agnes ToS §8.1. The footer credit ("Theme artwork generated with Agnes AI") satisfies the §6.1 AI-content disclosure whenever a theme is active. |
+
+`AGNES_API_KEY` lives in `./.env` (ignored, never committed, never baked
+into the image); the running app performs no network calls.
+
 ## System libraries (container image)
 
 | Library | License |
