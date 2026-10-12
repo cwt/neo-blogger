@@ -111,9 +111,9 @@ class ArticleService:
         return saved_id
 
     async def delete(self, article: ArticleDocument) -> None:
-        """Remove an article and cascade its comments (spec §5.4)."""
-        await self._articles.delete(article["_id"])
+        """Cascade comments and remove the article (spec §5.4)."""
         await self._visibility.delete_comments_for(article["_id"])
+        await self._articles.delete(article["_id"])
         await self._meta.bump_content_version()
 
     async def feed(
