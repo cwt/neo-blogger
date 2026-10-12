@@ -26,6 +26,7 @@ from .security.proxy import ProxyTrust, forwarded_base, forwarded_client
 from .security.ratelimit import FixedWindowRateLimiter
 from .services.cache import ResponseCache
 from .services.objects import legacy_url, readable_date
+from .services.theme import THEME_BANNER_KEY, THEME_OWNER, banner_for_path
 from .text.minify import minify_html
 
 __all__ = [
@@ -69,6 +70,23 @@ def drop_session() -> None:
 def recovery_limiter_allow(peer: str, email: str) -> bool:
     """Rate-limit gate for password recovery (Appendix B D5)."""
     return _recovery_limiter.allow(peer, email)
+
+
+async def ensure_theme_banners(context: AppContext) -> dict[str, str]:
+    """Load the deploy-time banner mapping once; empty without a theme.
+
+    Theme objects are ordinary gallery images owned by ``"theme"``; the
+    mapping survives restarts because it lives in the database, and a
+    regeneration takes effect on the next boot (spec §10).
+    """
+    if context.theme_banners is None:
+        rows, _total = await context.objects.list_for(THEME_OWNER, 1, 50)
+        context.theme_banners = {
+            str(row["metadata"].get(THEME_BANNER_KEY, "")): f"/images/{row['id']}.webp"
+            for row in rows
+            if row["metadata"].get(THEME_BANNER_KEY)
+        }
+    return context.theme_banners
 
 
 def request_client(trust: ProxyTrust) -> str:
@@ -160,6 +178,7 @@ def assemble(app: Quart, context: AppContext) -> None:
         first request of the day is already fast.
         """
         await context.database.start()
+        await ensure_theme_banners(context)
         if not (cache.active() and context.response_cache is not None):
             return
         version = await context.meta.content_version()
@@ -213,6 +232,7 @@ def assemble(app: Quart, context: AppContext) -> None:
     async def _prepare() -> Response | None:
         g.neoblogger_context = context
         await context.database.start()
+        await ensure_theme_banners(context)
         raw_cookie = request.cookies.get(_COOKIE_NAME)
         session = context.codec.load(raw_cookie) if raw_cookie else None
         g.session = session
@@ -258,6 +278,11 @@ def assemble(app: Quart, context: AppContext) -> None:
             structured = jsonld_document(article, site)
         else:
             structured = jsonld_document(None, site)
+        banners = context.theme_banners or {}
+        banner_url = banners.get(banner_for_path(request.path))
+        if banner_url is not None and article is not None and article.get("image"):
+            # An article's own cover wins over the page banner (spec §10).
+            banner_url = None
         return {
             "site_title": context.config.application.site_title,
             "site_author": context.config.application.site_author,
@@ -267,6 +292,8 @@ def assemble(app: Quart, context: AppContext) -> None:
             or (session.csrf_token if session is not None else ""),
             "year": datetime.datetime.now().year,
             "breadcrumbs": getattr(g, "breadcrumbs", []),
+            "theme_banner": banner_url,
+            "theme_active": bool(banners),
             "canonical_url": canonical_url_for(
                 context.config.application.base_url,
                 request_base(context.proxy_trust),

@@ -62,6 +62,7 @@ class AppContext:
     image_executor: ThreadPoolExecutor
     response_cache: ResponseCache | None = None
     proxy_trust: ProxyTrust = field(default_factory=ProxyTrust)
+    theme_banners: dict[str, str] | None = None
 
     async def run_image(self, work: Callable[[], T]) -> T:
         """Offload CPU-bound Pillow work to the image executor (§5.6)."""

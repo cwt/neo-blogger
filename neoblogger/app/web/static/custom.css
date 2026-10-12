@@ -249,6 +249,11 @@ main table {
 
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .gallery-item img { width: 100%; height: auto; }
+/* Deploy-time theme banner: one 21:9 illustration per page family (§10).
+   Absent without a generated theme, leaving the themeless default. */
+.theme-banner { margin: 0 0 1rem; }
+.theme-banner img { width: 100%; aspect-ratio: 21 / 9; object-fit: cover; border-radius: var(--pico-border-radius); }
+.theme-credit { color: var(--pico-muted-color); }
 /* Copy affordance overlays its own code block (spec §6). */
 div.highlight { position: relative; }
 div.highlight pre { padding-right: 4.5rem; }

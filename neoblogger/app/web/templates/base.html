@@ -54,12 +54,18 @@
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}{% for category, message in messages %}<p class="flash flash-{{ category }}">{{ message }}</p>{% endfor %}{% endif %}
   {% endwith %}
+  {% if theme_banner %}
+  <figure class="theme-banner">
+    <img src="{{ theme_banner }}" alt="" width="1568" height="672" fetchpriority="high">
+  </figure>
+  {% endif %}
   {% block content %}{% endblock %}
 </main>
 <footer class="site-footer">
   <div class="container">
     <p><a href="https://github.com">GitHub</a> · <a href="https://x.com">X</a></p>
     <p>© {{ year }} {{ site_title }} · <a href="/sitemap.xml">Site map</a></p>
+  {% if theme_active %}<p class="theme-credit"><small>Theme artwork generated with Agnes AI.</small></p>{% endif %}
   </div>
 </footer>
 <button id="back-to-top" type="button" aria-label="Back to top" hidden>↑</button>
