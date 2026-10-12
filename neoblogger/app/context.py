@@ -1,6 +1,7 @@
 """Per-application context (tech-req §3.4): assembled repositories and services."""
 
 import asyncio
+import secrets
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -82,7 +83,8 @@ class AppContext:
         comments = CommentRepository(database)
         objects = ObjectRepository(database)
         meta = MetaRepository(database)
-        codec = SessionCodec(config.application.secret_key)
+        secret = config.application.secret_key.strip() or secrets.token_urlsafe(32)
+        codec = SessionCodec(secret)
         auth = AuthService(codec)
         visibility = ArticleVisibility(articles, comments)
         accounts = AccountService(members, comments, visibility)

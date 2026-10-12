@@ -196,10 +196,16 @@ def _validate_document(document: dict[str, Any]) -> dict[str, Any]:
 
 def _production_gate(config: RuntimeConfig) -> None:
     """Refuse to boot production without a strong secret key (§15.9)."""
-    if config.application.https and not config.application.secret_key.strip():
-        raise ConfigurationError.missing_production_secret(
-            "secret_key is required when https = true"
-        )
+    secret = config.application.secret_key.strip()
+    if config.application.https:
+        if not secret:
+            raise ConfigurationError.missing_production_secret(
+                "secret_key is required when https = true"
+            )
+        if len(secret) < 32:
+            raise ConfigurationError.missing_production_secret(
+                "secret_key must be at least 32 characters when https = true"
+            )
 
 
 def load_config(config_path: str | None = None) -> RuntimeConfig:

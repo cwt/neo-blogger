@@ -120,6 +120,15 @@ def test_production_refuses_missing_secret(tmp_path: Path) -> None:
         load_config(str(path))
 
 
+def test_production_refuses_weak_secret(tmp_path: Path) -> None:
+    path = tmp_path / "neo-blogger.toml"
+    path.write_text(
+        '[application]\nhttps = true\nsecret_key = "short"\n', encoding="utf-8"
+    )
+    with pytest.raises(ConfigurationError):
+        load_config(str(path))
+
+
 def test_production_accepts_strong_secret(tmp_path: Path) -> None:
     path = tmp_path / "neo-blogger.toml"
     path.write_text(
