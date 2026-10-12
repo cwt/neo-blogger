@@ -9,6 +9,7 @@ RUN dnf -y install python3.14 python3.14-pip gcc libicu-devel libicu zig \
 
 WORKDIR /build
 COPY pyproject.toml README.md LICENSE uv.lock ./
+COPY neoblogger/ ./neoblogger/
 RUN python3.14 -m pip install --no-cache-dir build \
     && python3.14 -m build --wheel --outdir /dist
 
@@ -22,7 +23,7 @@ RUN zig build -Doptimize=ReleaseFast \
 
 FROM fedora:44 AS runtime
 
-RUN dnf -y install python3.14 libicu \
+RUN dnf -y install python3.14 python3.14-pip libicu \
     && dnf clean all
 
 COPY --from=build /out/lib/ /usr/local/lib/
@@ -30,6 +31,7 @@ COPY --from=build /dist/*.whl /tmp/wheel/
 RUN python3.14 -m pip install --no-cache-dir \
         gunicorn "uvicorn[standard]>=0.34" uvicorn-worker \
     && python3.14 -m pip install --no-cache-dir /tmp/wheel/*.whl \
+    && rm -rf /tmp/wheel \
     && ldconfig
 
 WORKDIR /app
