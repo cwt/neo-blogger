@@ -21,6 +21,7 @@ class _Entry:
     html: str
     version: int
     stored_at: float
+    nonce: str = ""
 
 
 class ResponseCache:
@@ -43,8 +44,8 @@ class ResponseCache:
         """Current entry count; observability for tests and ops."""
         return len(self._entries)
 
-    async def get(self, key: str, version: int) -> str | None:
-        """The cached HTML for ``key`` when fresh and version-matching."""
+    async def get(self, key: str, version: int) -> tuple[str, str] | None:
+        """The cached (HTML, nonce) for ``key`` when fresh and version-matching."""
         if not self._enabled:
             return None
         try:
@@ -53,18 +54,21 @@ class ResponseCache:
                 return None
             if time.monotonic() - entry.stored_at > self._timeout:
                 return None
-            return entry.html
+            return entry.html, entry.nonce
         except Exception as error:
             _logger.warning("cache read failed: %s", error)
             return None
 
-    async def put(self, key: str, html: str, version: int) -> None:
+    async def put(self, key: str, html: str, version: int, nonce: str = "") -> None:
         """Store rendered HTML under ``key``; oldest entries evicted."""
         if not self._enabled:
             return
         try:
             self._entries[key] = _Entry(
-                html=html, version=version, stored_at=time.monotonic()
+                html=html,
+                version=version,
+                stored_at=time.monotonic(),
+                nonce=nonce,
             )
             while len(self._entries) > self._max_entries:
                 oldest = self._oldest_key()

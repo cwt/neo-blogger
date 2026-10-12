@@ -8,6 +8,7 @@ cache-control policy, and HTML minification.
 """
 
 import datetime
+import secrets
 from typing import Any, cast
 
 from quart import Quart, Response, abort, g, render_template, request
@@ -34,8 +35,10 @@ __all__ = [
     "context_of",
     "drop_session",
     "issue_session",
+    "recovery_limiter_allow",
     "request_base",
     "request_client",
+    "signin_limiter_allow",
 ]
 
 _CONTEXT_KEY = "neoblogger_context"
@@ -44,6 +47,7 @@ _COOKIE_MAX_AGE = 24 * 60 * 60
 _MUTATING_METHODS = frozenset({"POST", "PUT", "DELETE"})
 
 _recovery_limiter = FixedWindowRateLimiter(max_attempts=5, window_seconds=300.0)
+_signin_limiter = FixedWindowRateLimiter(max_attempts=5, window_seconds=300.0)
 
 
 def context_of(app: Quart) -> AppContext:
@@ -51,10 +55,12 @@ def context_of(app: Quart) -> AppContext:
     return cast(AppContext, app.extensions[_CONTEXT_KEY])
 
 
-def issue_session(member_id: str) -> None:
+def issue_session(member_id: str, session_version: int = 1) -> None:
     """Start a session; the cookie is written by ``after_request``."""
     context: AppContext = g.neoblogger_context
-    cookie, token = context.auth.start_session(member_id)
+    cookie, token = context.auth.start_session(
+        member_id, session_version=session_version
+    )
     g.set_session_cookie = cookie
     g.csrf_token = token
 
@@ -70,6 +76,11 @@ def drop_session() -> None:
 def recovery_limiter_allow(peer: str, email: str) -> bool:
     """Rate-limit gate for password recovery (Appendix B D5)."""
     return _recovery_limiter.allow(peer, email)
+
+
+def signin_limiter_allow(peer: str, email: str) -> bool:
+    """Rate-limit gate for sign-in attempts."""
+    return _signin_limiter.allow(peer, email)
 
 
 async def ensure_theme_banners(context: AppContext) -> dict[str, str]:
@@ -190,10 +201,12 @@ def assemble(app: Quart, context: AppContext) -> None:
         async with app.test_request_context("/"):
             g.member = None
             g.session = None
+            nonce = secrets.token_hex(16)
+            g.csp_nonce = nonce
             rendered = await render_home_page(
                 context, 1, context.config.posts.per_page, None
             )
-            await cache.put("home:1", minify_html(rendered), version)
+            await cache.put("home:1", minify_html(rendered), version, nonce=nonce)
 
     @app.errorhandler(404)
     async def _not_found(_: Exception) -> tuple[str, int]:
@@ -231,6 +244,7 @@ def assemble(app: Quart, context: AppContext) -> None:
     @app.before_request
     async def _prepare() -> Response | None:
         g.neoblogger_context = context
+        g.csp_nonce = secrets.token_hex(16)
         await context.database.start()
         await ensure_theme_banners(context)
         raw_cookie = request.cookies.get(_COOKIE_NAME)
@@ -239,11 +253,16 @@ def assemble(app: Quart, context: AppContext) -> None:
         member = None
         if session is not None:
             member = await context.members.by_id(session.member_id)
-            if member is not None and not member["active"]:
+            if member is not None and (
+                not member["active"]
+                or member.get("session_version", 1) != session.session_version
+            ):
                 member = None
         g.member = member
         if member is None and session is not None:
             g.destroy_session_cookie = True
+            g.session = None
+            session = None
         if request.method in _MUTATING_METHODS:
             if session is None:
                 # No ambient authority to forge yet (signup/signin/recover):
@@ -260,9 +279,11 @@ def assemble(app: Quart, context: AppContext) -> None:
                     abort(403)
         if cache.active() and member is None and _is_home_page():
             version = await context.meta.content_version()
-            cached = await cache.get(_cache_key(), version)
-            if cached is not None:
-                return Response(cached, content_type="text/html; charset=utf-8")
+            hit = await cache.get(_cache_key(), version)
+            if hit is not None:
+                cached_html, cached_nonce = hit
+                g.csp_nonce = cached_nonce
+                return Response(cached_html, content_type="text/html; charset=utf-8")
         return None
 
     @app.context_processor
@@ -290,6 +311,7 @@ def assemble(app: Quart, context: AppContext) -> None:
             "member": getattr(g, "member", None),
             "csrf_token": getattr(g, "csrf_token", "")
             or (session.csrf_token if session is not None else ""),
+            "csp_nonce": getattr(g, "csp_nonce", ""),
             "year": datetime.datetime.now().year,
             "breadcrumbs": getattr(g, "breadcrumbs", []),
             "theme_banner": banner_url,
@@ -305,7 +327,8 @@ def assemble(app: Quart, context: AppContext) -> None:
     @app.after_request
     async def _finalize(response: Response) -> Response:
         secure = context.config.application.https
-        for name, value in security_headers(https=secure).items():
+        nonce = getattr(g, "csp_nonce", None)
+        for name, value in security_headers(https=secure, nonce=nonce).items():
             response.headers[name] = value
         session = getattr(g, "session", None)
         member = getattr(g, "member", None)
@@ -316,12 +339,14 @@ def assemble(app: Quart, context: AppContext) -> None:
             # hygiene above only drops the cookie: a disabled account's
             # leftover cookie must not evict cached pages for everyone.
             cache.clear()
+        elif getattr(g, "set_session_cookie", None):
+            _set_session_cookie(response, g.set_session_cookie, secure=secure)
+            if "text/html" in response.headers.get("Content-Type", ""):
+                response.headers["Cache-Control"] = "no-store"
         elif member is not None and session is not None:
             _set_session_cookie(response, context.auth.refresh(session), secure=secure)
             if "text/html" in response.headers.get("Content-Type", ""):
                 response.headers["Cache-Control"] = "no-store"
-        elif getattr(g, "set_session_cookie", None):
-            _set_session_cookie(response, g.set_session_cookie, secure=secure)
         if request.path.startswith("/search") or request.path.startswith("/tag/"):
             response.headers["Cache-Control"] = "no-cache"
         if (
@@ -340,6 +365,6 @@ def assemble(app: Quart, context: AppContext) -> None:
             rendered = body.decode("utf-8") if isinstance(body, bytes) else body
             minified = minify_html(rendered)
             version = await context.meta.content_version()
-            await cache.put(_cache_key(), minified, version)
+            await cache.put(_cache_key(), minified, version, nonce=nonce or "")
             response.set_data(minified)
         return response

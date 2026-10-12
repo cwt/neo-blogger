@@ -16,10 +16,18 @@ class AuthService:
     def __init__(self, codec: SessionCodec) -> None:
         self._codec = codec
 
-    def start_session(self, member_id: str) -> tuple[str, str]:
+    def start_session(
+        self, member_id: str, session_version: int = 1
+    ) -> tuple[str, str]:
         """Create a session; returns (cookie value, csrf token)."""
         token = new_csrf_token()
-        cookie = self._codec.dump(SessionData(member_id=member_id, csrf_token=token))
+        cookie = self._codec.dump(
+            SessionData(
+                member_id=member_id,
+                csrf_token=token,
+                session_version=session_version,
+            )
+        )
         return cookie, token
 
     def resolve(self, cookie: str | None) -> SessionData | None:

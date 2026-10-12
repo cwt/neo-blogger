@@ -114,12 +114,21 @@ async def test_canonical_ignores_untrusted_forwarded_headers(app: Any) -> None:
 
 
 async def test_canonical_and_site_metadata(app: Any) -> None:
-    rendered = await body_of(await app.test_client().get("/"))
+    import re
+
+    response = await app.test_client().get("/")
+    csp = response.headers.get("Content-Security-Policy", "")
+    assert "script-src 'self' 'nonce-" in csp
+    match = re.search(r"'nonce-([a-f0-9]+)'", csp)
+    assert match is not None
+    nonce = match.group(1)
+
+    rendered = await body_of(response)
     assert '<link rel="canonical" href=' in rendered
     assert '<meta name="description"' in rendered
     assert '<meta name="author"' in rendered
     assert 'rel="icon"' in rendered
-    assert "application/ld+json" in rendered
+    assert f'<script type="application/ld+json" nonce="{nonce}">' in rendered
     assert '"WebSite"' in rendered
 
 

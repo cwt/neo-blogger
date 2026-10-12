@@ -137,7 +137,7 @@ class AccountService:
         new_password: str | None,
         question_code: str,
         answer: str,
-    ) -> None:
+    ) -> int:
         """Rotate credentials; the question/answer is mandatory (§4.6)."""
         new_email = new_email.strip().lower()
         if not new_email:
@@ -153,7 +153,7 @@ class AccountService:
             hash_secret(new_password) if new_password else member["password_hash"]
         )
         answer_hash = hash_secret(normalize_answer(answer))
-        await self._members.update_credentials(
+        return await self._members.update_credentials(
             member["_id"],
             email=new_email,
             password_hash=password_hash,

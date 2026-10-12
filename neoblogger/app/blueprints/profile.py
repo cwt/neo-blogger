@@ -35,13 +35,16 @@ def create_profile_blueprint(context: AppContext) -> Blueprint:
             form = await request.form
             new_password = form.get("new_password", "")
             try:
-                await context.accounts.update_credentials(
+                new_version = await context.accounts.update_credentials(
                     g.member,
                     new_email=form.get("email", "").strip(),
                     new_password=new_password if new_password else None,
                     question_code=form.get("question_code", ""),
                     answer=form.get("answer", ""),
                 )
+                from ..wiring import issue_session
+
+                issue_session(g.member["_id"], session_version=new_version)
             except Exception as error:  # — flashed, never a trace
                 await flash(str(error), "error")
                 return redirect("/profile/edit")

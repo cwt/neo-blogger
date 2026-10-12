@@ -38,6 +38,13 @@ def test_headers_in_development_have_no_hsts() -> None:
     assert "Strict-Transport-Security" not in security_headers(https=False)
 
 
+def test_headers_with_nonce() -> None:
+    headers = security_headers(https=False, nonce="test-nonce-123")
+    assert (
+        "script-src 'self' 'nonce-test-nonce-123'" in headers["Content-Security-Policy"]
+    )
+
+
 def test_rate_limiter_blocks_after_limit() -> None:
     limiter = FixedWindowRateLimiter(max_attempts=3, window_seconds=60.0)
     assert limiter.allow("1.2.3.4", "a@x.io") is True

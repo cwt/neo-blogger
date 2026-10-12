@@ -23,6 +23,7 @@ class MemberAlreadyExistsError(Exception):
 
 def _normalize(document: dict[str, Any]) -> MemberDocument:
     normalized = normalized_document(document, _MEMBER_BOOLEANS)
+    normalized["session_version"] = int(normalized.get("session_version", 1))
     return cast(MemberDocument, normalized)
 
 
@@ -59,6 +60,7 @@ class MemberRepository:
                     "active": True,
                     "administrator": administrator,
                     "publisher": publisher,
+                    "session_version": 1,
                 }
             )
             return str(result.inserted_id)
@@ -99,6 +101,7 @@ class MemberRepository:
                     "active": True,
                     "administrator": promoted,
                     "publisher": promoted,
+                    "session_version": 1,
                 }
             )
             return str(result.inserted_id), promoted
@@ -210,19 +213,23 @@ class MemberRepository:
         password_hash: str,
         security_question_code: str,
         security_answer_hash: str,
-    ) -> None:
+    ) -> int:
         """Rotate credentials; display name is immutable (spec §4.6, D1).
 
         The email-uniqueness check runs inside the same executor work unit
         as the write, so concurrent rotations cannot both win (the service
-        pre-check is only an early, non-authoritative gate).
+        pre-check is only an early, non-authoritative gate). Returns the
+        new session_version integer.
         """
 
-        def update() -> None:
+        def update() -> int:
             members = self._database.connection.members
             existing = members.find_one({"email": email})
             if existing is not None and str(existing["_id"]) != member_id:
                 raise MemberAlreadyExistsError("email already registered")
+            target = members.find_one({"_id": member_id})
+            current_version = int(target.get("session_version", 1)) if target else 1
+            new_version = current_version + 1
             members.update_one(
                 {"_id": member_id},
                 {
@@ -231,8 +238,10 @@ class MemberRepository:
                         "password_hash": password_hash,
                         "security_question_code": security_question_code,
                         "security_answer_hash": security_answer_hash,
+                        "session_version": new_version,
                     }
                 },
             )
+            return new_version
 
-        await self._database.run(update)
+        return await self._database.run(update)

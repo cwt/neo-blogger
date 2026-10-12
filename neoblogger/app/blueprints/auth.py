@@ -43,9 +43,21 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
     async def signin() -> str | Response:
         if request.method == "POST":
             form = await request.form
+            from ..wiring import (
+                issue_session,
+                request_client,
+                signin_limiter_allow,
+            )
+
+            email = form.get("email", "").strip()
+            if not signin_limiter_allow(
+                request_client(context.proxy_trust), email.lower()
+            ):
+                await flash("Too many attempts. Try again later.", "error")
+                return redirect("/signin")
             try:
                 member = await context.accounts.authenticate(
-                    form.get("email", "").strip(), form.get("password", "")
+                    email, form.get("password", "")
                 )
             except Exception as error:
                 await flash(str(error), "error")
@@ -53,9 +65,11 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
             if member is None:
                 await flash("Sign-in failed. Check your email and password.", "error")
                 return redirect("/signin")
-            from ..wiring import issue_session
 
-            issue_session(member["_id"])
+            issue_session(
+                member["_id"],
+                session_version=member.get("session_version", 1),
+            )
             await flash("Signed in.", "success")
             return redirect("/profile")
         return await render_template("sign_in.html")

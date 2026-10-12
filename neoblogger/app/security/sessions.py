@@ -21,6 +21,7 @@ class SessionData:
 
     member_id: str
     csrf_token: str
+    session_version: int = 1
 
 
 class SessionCodec:
@@ -35,7 +36,11 @@ class SessionCodec:
         """Serialize and sign a session payload."""
         return str(
             self._serializer.dumps(
-                {"member_id": session.member_id, "csrf_token": session.csrf_token}
+                {
+                    "member_id": session.member_id,
+                    "csrf_token": session.csrf_token,
+                    "session_version": session.session_version,
+                }
             )
         )
 
@@ -50,6 +55,15 @@ class SessionCodec:
             return None
         match payload:
             case {"member_id": str() as member_id, "csrf_token": str() as token}:
-                return SessionData(member_id=member_id, csrf_token=token)
+                raw_version = payload.get("session_version", 1)
+                try:
+                    version = int(raw_version)
+                except TypeError, ValueError:
+                    version = 1
+                return SessionData(
+                    member_id=member_id,
+                    csrf_token=token,
+                    session_version=version,
+                )
             case _:
                 return None

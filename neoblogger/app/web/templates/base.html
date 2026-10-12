@@ -13,7 +13,7 @@
   <meta name="author" content="{% block author %}{{ site_author }}{% endblock %}">
   {% block head %}{% endblock %}
   <link rel="canonical" href="{{ canonical_url }}">
-  <script type="application/ld+json">{{ jsonld | tojson }}</script>
+  <script type="application/ld+json" nonce="{{ csp_nonce }}">{{ jsonld | tojson }}</script>
   <link rel="stylesheet" href="/static/pico.min.css">
   <link rel="stylesheet" href="/static/fonts.css">
   <link rel="stylesheet" href="/static/custom.css">

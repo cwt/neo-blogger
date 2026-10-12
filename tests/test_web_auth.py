@@ -156,3 +156,102 @@ async def test_recovery_rate_limit_uses_forwarded_client(
     assert fresh.status_code == 302
     flashed = (await (await client.get("/recover")).get_data()).decode("utf-8")
     assert "Too many attempts" not in flashed
+
+
+async def test_signin_rate_limit_blocks_after_attempts(app: Any) -> None:
+    client = app.test_client()
+    for _ in range(5):
+        response = await client.post(
+            "/signin",
+            form={"email": "victim@example.com", "password": "wrong-password"},
+        )
+        assert response.status_code == 302
+    limited = await client.post(
+        "/signin",
+        form={"email": "victim@example.com", "password": "wrong-password"},
+    )
+    assert limited.status_code == 302
+    flashed = (await (await client.get("/signin")).get_data()).decode("utf-8")
+    assert "Too many attempts" in flashed
+
+
+async def test_password_recovery_invalidates_existing_session(app: Any) -> None:
+    client = app.test_client()
+    await client.post(
+        "/signup",
+        form={
+            "display_name": "alice",
+            "email": "alice@example.com",
+            "password": "original-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+        },
+    )
+    # Alice is signed in; profile succeeds
+    profile_resp = await client.get("/profile")
+    assert profile_resp.status_code == 200
+
+    # Password recovery happens (e.g. account compromised/reset)
+    recover_client = app.test_client()
+    recover_page = await recover_client.post(
+        "/recover",
+        form={
+            "email": "alice@example.com",
+            "answer": "Snowball",
+            "new_password": "brand-new-password",
+        },
+    )
+    assert recover_page.status_code == 302
+    assert recover_page.headers["Location"] == "/signin"
+
+    # Alice's old session cookie is now rejected on next request
+    stale_profile = await client.get("/profile")
+    assert stale_profile.status_code == 302
+    assert stale_profile.headers["Location"] == "/signin"
+
+
+async def test_profile_edit_invalidates_stale_sessions(app: Any) -> None:
+    client_a = app.test_client()
+    await client_a.post(
+        "/signup",
+        form={
+            "display_name": "bob",
+            "email": "bob@example.com",
+            "password": "sturdy-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+        },
+    )
+    stale_cookie = ""
+    for cookie in client_a.cookie_jar:
+        if cookie.name == "neoblogger_session":
+            stale_cookie = cookie.value
+    assert stale_cookie != ""
+
+    # Bob rotates credentials from client A
+    edit_page = await client_a.get("/profile/edit")
+    token = csrf_token_from((await edit_page.get_data()).decode("utf-8"))
+    update_resp = await client_a.post(
+        "/profile/edit",
+        form={
+            "csrftoken": token,
+            "email": "bob_new@example.com",
+            "new_password": "newer-password",
+            "question_code": "first-pet",
+            "answer": "Snowball",
+        },
+    )
+    assert update_resp.status_code == 302
+    assert update_resp.headers["Location"] == "/profile"
+
+    # Client A has fresh session cookie, so profile works
+    resp_a = await client_a.get("/profile")
+    assert resp_a.status_code == 200
+
+    # Client B with stale session cookie is now refused
+    client_b = app.test_client()
+    resp_b = await client_b.get(
+        "/profile", headers={"Cookie": f"neoblogger_session={stale_cookie}"}
+    )
+    assert resp_b.status_code == 302
+    assert resp_b.headers["Location"] == "/signin"

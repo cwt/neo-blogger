@@ -22,6 +22,7 @@ class MemberDocument(TypedDict):
     active: bool
     administrator: bool
     publisher: bool
+    session_version: NotRequired[int]
 
 
 class ArticleDocument(TypedDict):
