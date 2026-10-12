@@ -249,7 +249,16 @@ main table {
 
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .gallery-item img { width: 100%; height: auto; }
-.copy-button { float: right; font-size: 0.8em; cursor: pointer; }
+/* Copy affordance overlays its own code block (spec §6). */
+div.highlight { position: relative; }
+div.highlight pre { padding-right: 4.5rem; }
+div.highlight .copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.8em;
+  cursor: pointer;
+}
 #back-to-top {
   position: fixed;
   bottom: 1.5rem;
