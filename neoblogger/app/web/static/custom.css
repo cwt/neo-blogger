@@ -270,13 +270,14 @@ div.highlight .copy-button {
 
 /* Editor button labels without an icon font (CSP 'self'). EasyMDE 2.19
    names its toolbar buttons by action ("bold", "italic", ...), so labels
-   are attached via ::after content. EasyMDE's own toolbar text is white
-   (invisible on Pico's surfaces) - theme it via Pico variables. */
+   are attached via ::after content. Pico scopes --pico-color to
+   primary-inverse (white) on every <button>, so the toolbar must use
+   --pico-contrast instead, or the labels render white-on-white. */
 .EasyMDEContainer .editor-toolbar,
 .EasyMDEContainer .editor-toolbar button,
 .EasyMDEContainer .editor-toolbar button:hover,
 .EasyMDEContainer .editor-toolbar button.active {
-  color: var(--pico-color);
+  color: var(--pico-contrast);
 }
 .EasyMDEContainer .editor-toolbar button { font-size: 1rem; font-weight: 600; }
 .EasyMDEContainer .editor-toolbar button:hover {
