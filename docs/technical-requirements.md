@@ -30,6 +30,7 @@ Companion document: `docs/requirements.md` (functional specification). This docu
 
 Python 3.14 features must be used where they improve clarity:
 
+- **Exception handling without parentheses (PEP 758)**: multiple exception types in `except` clauses may omit parentheses (`except TypeError, ValueError:`). `ruff format` standardizes on this form for Python 3.14 targets.
 - **Deferred annotations (PEP 649/749)**: annotate everything; no forward-reference quotes needed.
 - **Template strings / t-strings (PEP 750)**: permitted for building small dynamic HTML fragments in Python where a Jinja template would be overkill; never used with raw user data (t-string interpolation must route through the sanitizer pipeline).
 - **`asyncio.TaskGroup` + `asyncio.timeout()`**: all structured concurrency (e.g. dashboard statistics, parallel repository reads) must use TaskGroups.

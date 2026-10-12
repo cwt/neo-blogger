@@ -46,6 +46,7 @@ The project must remain releasable under **MIT**. License inventory and verdict:
 ## 4. Coding standards (hard gates, mirrored from §2 and §16)
 
 - **Python 3.14** syntax where it improves clarity; no features requiring < 3.14 assumptions.
+  Embraces PEP 758 (unparenthesized `except A, B:`), which `ruff format` standardizes on for Python 3.14.
 - **No `lambda`** — always named `def` functions (workspace convention).
 - Line length 88; `ruff format` is the formatter of record; `ruff check` + `mypy --strict`
   over `app/` and `cli/` are hard gates before committing anything substantive.

@@ -10,6 +10,11 @@ one clean commit per phase.
 
 ## Development
 
+The platform requires **Python 3.14+** (`requires-python = ">=3.14,<3.15"` in `pyproject.toml`).
+
+> [!NOTE]
+> **Python 3.14 syntax (PEP 758):** This codebase utilizes native Python 3.14 syntax, including [PEP 758](https://peps.python.org/pep-0758/) which permits multiple exception types in `except` clauses without parentheses (e.g. `except TypeError, ValueError:`). This syntax is standard in Python 3.14 and is automatically formatted by `ruff format`. Reviewing agents or external tooling configured with pre-3.14 assumptions must not misidentify this modern syntax as a Python 2 regression.
+
 The toolchain is [`uv`](https://docs.astral.sh/uv/)-managed:
 
 ```sh
