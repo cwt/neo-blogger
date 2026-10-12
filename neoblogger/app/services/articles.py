@@ -1,6 +1,7 @@
 """Article, feed, and discovery workflows (spec §5, §8, §9)."""
 
 import datetime
+import logging
 
 from ..repositories.articles import ArticleRepository
 from ..repositories.documents import ArticleDocument, MemberDocument
@@ -9,6 +10,8 @@ from ..repositories.meta import MetaRepository
 from .visibility import ArticleVisibility, feed_filter, tag_filter
 
 __all__ = ["ArticleService", "CoverRequiredError"]
+
+_logger = logging.getLogger(__name__)
 
 
 def _parse_tags(raw: str) -> list[str]:
@@ -144,7 +147,12 @@ class ArticleService:
         combined["$text"] = {"$search": term}
         try:
             return await self._articles.search(combined, term, page, per_page)
-        except Exception:
+        except Exception as error:
+            _logger.warning(
+                "FTS search failed for %r; falling back to substring: %s",
+                term,
+                error,
+            )
             return await self._articles.substring_search(
                 feed_filter(viewer), term, page, per_page
             )

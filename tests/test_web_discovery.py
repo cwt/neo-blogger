@@ -125,6 +125,32 @@ async def test_search_results_and_no_cache(app: Any) -> None:
     assert "Nothing found" in empty
 
 
+async def test_search_falls_back_to_substring_when_fts_fails(
+    app: Any, monkeypatch: Any, caplog: Any
+) -> None:
+    context = app.extensions["neoblogger_context"]
+    root_client = await signup(app, "root")
+    await write_article(
+        app,
+        root_client,
+        title="Fallback title needle",
+        publish=True,
+        cover="https://x.io/c.webp",
+        tags="python",
+    )
+
+    async def broken_search(*args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError("simulated FTS index failure")
+
+    monkeypatch.setattr(context.articles, "search", broken_search)
+
+    with caplog.at_level("WARNING"):
+        page = await root_client.get("/search?q=needle")
+    rendered = await body_of(page)
+    assert "Fallback title needle" in rendered
+    assert "FTS search failed for 'needle'; falling back to substring" in caplog.text
+
+
 async def test_search_rejections_flash_and_redirect(app: Any) -> None:
     client = await signup(app, "root")
     for hostile in ("https://evil.example", "<script>", "/etc/passwd", "SELECT {x}"):
