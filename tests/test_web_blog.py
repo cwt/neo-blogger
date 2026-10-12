@@ -197,6 +197,9 @@ async def test_edit_save_failure_returns_to_edit_page(
     )
     assert response.status_code == 302
     assert response.headers["Location"] == f"/write/{article_id}"
+    flashed = await body_of(await user_client.get(f"/write/{article_id}"))
+    assert "Failed to save article. Please try again." in flashed
+    assert "storage unavailable" not in flashed
 
 
 async def test_author_names_have_no_dead_profile_links(app: Any) -> None:

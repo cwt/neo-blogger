@@ -1,14 +1,15 @@
 """Reading and writing: home feed, article pages, editor, deletion (spec §5, §6)."""
 
 import datetime
+import logging
 from collections.abc import Awaitable
-from typing import Any
 
 from quart import Blueprint, flash, g, redirect, render_template, request
 from werkzeug.routing import BaseConverter
 from werkzeug.wrappers import Response as WerkzeugResponse
 
 from ..context import AppContext
+from ..repositories.documents import MemberDocument
 from ..services.articles import CoverRequiredError
 from ..services.objects import derive_description, legacy_url
 from ..text.highlight import highlight_code_blocks
@@ -16,6 +17,8 @@ from ..text.markdown import render_markdown
 from ..text.sanitize import sanitize_html
 
 __all__ = ["HexIdConverter", "create_blog_blueprint", "render_home_page"]
+
+_logger = logging.getLogger(__name__)
 
 
 _COVER_PICKER_LIMIT = 48
@@ -116,8 +119,9 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
             except CoverRequiredError:
                 await flash("A cover image is required to publish.", "error")
                 return redirect(f"/write/{article_id}" if article_id else "/write")
-            except Exception as error:  # — flashed, never a trace
-                await flash(str(error), "error")
+            except Exception as error:
+                _logger.error("Failed to save article: %s", error, exc_info=True)
+                await flash("Failed to save article. Please try again.", "error")
                 edit_target = f"/write/{article_id}" if article_id else "/write"
                 return redirect(edit_target)
             await flash("Saved.", "success")
@@ -159,8 +163,9 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
             await context.comment_service.add(
                 g.member, article, form.get("text", "").strip(), _now()
             )
-        except Exception as error:  # — flashed, never a trace
-            await flash(str(error), "error")
+        except Exception as error:
+            _logger.error("Failed to post comment: %s", error, exc_info=True)
+            await flash("Failed to post comment. Please try again.", "error")
             return redirect(f"/{article_id}")
         await flash("Comment added.", "success")
         return redirect(f"/{article_id}#comments")
@@ -181,7 +186,7 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
 
 
 def render_home_page(
-    context: AppContext, page: int, per_page: int, member: Any
+    context: AppContext, page: int, per_page: int, member: MemberDocument | None
 ) -> Awaitable[str]:
     """Awaitable of the home-feed page; shared by route and pre-warm (§14)."""
 
