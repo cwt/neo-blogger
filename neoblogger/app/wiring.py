@@ -136,8 +136,8 @@ def _set_session_cookie(response: Response, value: str, *, secure: bool) -> None
     )
 
 
-def _cache_key() -> str:
-    """The home-feed cache key: validated page number (spec §14).
+def _cache_key(per_page: int = 10) -> str:
+    """The home-feed cache key: validated page number and page size (spec §14).
 
     Raw query input would mint a junk key per malformed value ("abc",
     "-3", ...) for identical content; coerce exactly like the feed
@@ -147,7 +147,7 @@ def _cache_key() -> str:
         page = int(request.args.get("page", "1"))
     except ValueError:
         page = 1
-    return f"home:{max(1, page)}"
+    return f"home:{max(1, page)}:{per_page}"
 
 
 def _is_home_page() -> bool:
@@ -176,7 +176,9 @@ def assemble(app: Quart, context: AppContext) -> None:
     cache = ResponseCache(
         enabled=caching.enabled,
         timeout_seconds=caching.timeout_seconds,
-        max_entries=256,
+        max_size_mb=caching.max_size_mb,
+        storage=caching.storage,
+        directory=caching.directory,
     )
 
     context.response_cache = cache
@@ -194,9 +196,11 @@ def assemble(app: Quart, context: AppContext) -> None:
         if not (cache.active() and context.response_cache is not None):
             return
         version = await context.meta.content_version()
+        per_page = context.config.posts.per_page
+        key = f"home:1:{per_page}"
         # Page 1 under its validated key; _cache_key() itself is unusable
         # here — there is no request context during startup.
-        cached = await cache.get("home:1", version)
+        cached = await cache.get(key, version)
         if cached is not None:
             return
         async with app.test_request_context("/"):
@@ -204,10 +208,8 @@ def assemble(app: Quart, context: AppContext) -> None:
             g.session = None
             nonce = secrets.token_hex(16)
             g.csp_nonce = nonce
-            rendered = await render_home_page(
-                context, 1, context.config.posts.per_page, None
-            )
-            await cache.put("home:1", minify_html(rendered), version, nonce=nonce)
+            rendered = await render_home_page(context, 1, per_page, None)
+            await cache.put(key, minify_html(rendered), version, nonce=nonce)
 
     @app.errorhandler(404)
     async def _not_found(_: Exception) -> tuple[str, int]:
@@ -283,7 +285,7 @@ def assemble(app: Quart, context: AppContext) -> None:
                 abort(403)
         if cache.active() and member is None and _is_home_page():
             version = await context.meta.content_version()
-            hit = await cache.get(_cache_key(), version)
+            hit = await cache.get(_cache_key(context.config.posts.per_page), version)
             if hit is not None:
                 cached_html, cached_nonce = hit
                 g.csp_nonce = cached_nonce
@@ -384,6 +386,11 @@ def assemble(app: Quart, context: AppContext) -> None:
             rendered = body.decode("utf-8") if isinstance(body, bytes) else body
             minified = minify_html(rendered)
             version = await context.meta.content_version()
-            await cache.put(_cache_key(), minified, version, nonce=nonce or "")
+            await cache.put(
+                _cache_key(context.config.posts.per_page),
+                minified,
+                version,
+                nonce=nonce or "",
+            )
             response.set_data(minified)
         return response
