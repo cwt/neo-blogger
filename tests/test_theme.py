@@ -58,13 +58,30 @@ async def test_seeded_theme_renders_banner_and_credit(app: Any) -> None:
 
 
 async def test_article_cover_wins_over_banner(app: Any) -> None:
-    await _seed_banner(app, "article")
+    context = app.extensions["neoblogger_context"]
+    await context.database.start()
+    theme_id = await context.objects.upload(
+        "theme_article.webp",
+        b"fake-banner-bytes",
+        {
+            "owner": "theme",
+            "original_filename": "theme_article.webp",
+            "alt_text": "article",
+            "upload_time": "2026-10-12T00:00:00",
+            "content_type": "image/webp",
+            "theme_banner": "article",
+        },
+    )
     client = await signup(app, "user")
     covered_id = await write_article(
         app, client, title="Covered", publish=True, cover="https://x.io/c.webp"
     )
     covered = await body_of(await client.get(f"/{covered_id}"))
-    assert 'class="theme-banner"' not in covered
+    assert f"/images/{theme_id}.webp" not in covered
+    assert "https://x.io/c.webp" in covered
+    assert "<figcaption" in covered
+    assert covered.count("<h1>") == 1
     draft_id = await write_article(app, client, title="Bare", publish=False)
     bare = await body_of(await client.get(f"/{draft_id}"))
-    assert 'class="theme-banner"' in bare
+    assert f"/images/{theme_id}.webp" in bare
+    assert bare.count("<h1>") == 1

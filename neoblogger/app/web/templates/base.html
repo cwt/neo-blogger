@@ -62,7 +62,7 @@
       {{ self.hero_sub() }}
     </figcaption>
   </figure>
-  {% else %}
+  {% elif not (article and article.get("cover_url")) %}
   <h1>{% block hero_title %}{% endblock %}</h1>
   {% block hero_sub %}{% endblock %}
   {% endif %}

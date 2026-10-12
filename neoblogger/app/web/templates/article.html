@@ -18,7 +18,15 @@
 <p class="flash flash-warning">This article is not visible to regular users (author is not an approved publisher).</p>
 {% endif %}
 <header class="article-header">
-  {% if article.cover_url %}<img class="cover" src="{{ article.cover_url }}" alt="{{ article.title }}" width="1200" height="400" fetchpriority="high">{% endif %}
+  {% if article.cover_url %}
+  <figure class="theme-banner">
+    <img class="cover" src="{{ article.cover_url }}" alt="{{ article.title }}" width="1200" height="400" fetchpriority="high">
+    <figcaption class="theme-caption">
+      <h1>{{ article.title }}</h1>
+      <p class="subtitle">{{ article.subtitle }}</p>
+    </figcaption>
+  </figure>
+  {% endif %}
   <p class="meta">Posted by {{ article.author }} on {{ article.created | readable_date }}</p>
   <p class="meta">{% for tag in article.tags %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}</p>
 </header>
