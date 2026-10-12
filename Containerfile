@@ -6,7 +6,8 @@ FROM fedora:44 AS build
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
-RUN dnf -y install python3.14 python3.14-pip gcc sqlite-devel libicu-devel libicu zig \
+RUN dnf -y upgrade \
+    && dnf -y install python3.14 python3.14-pip gcc sqlite-devel libicu-devel libicu zig \
     && dnf clean all
 
 WORKDIR /build
@@ -27,7 +28,8 @@ FROM fedora:44 AS runtime
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
-RUN dnf -y install python3.14 python3.14-pip libicu \
+RUN dnf -y upgrade \
+    && dnf -y install python3.14 python3.14-pip libicu \
     && dnf clean all
 
 COPY --from=build /out/lib/ /usr/local/lib/
