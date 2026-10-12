@@ -84,8 +84,16 @@ class ArticleVisibility:
     def can_delete(
         self, viewer: MemberDocument | None, article: ArticleDocument
     ) -> bool:
-        """Same authorization as editing (spec §5.4)."""
-        return self.can_edit(viewer, article)
+        """Admins or authors delete published articles.
+        Draft deletion is author-only (§5.4).
+        """
+        if viewer is None:
+            return False
+        if article["status"] != "published":
+            return viewer["display_name"] == article["author"]
+        if viewer["administrator"]:
+            return True
+        return viewer["display_name"] == article["author"]
 
     async def articles_by_author(self, author: str) -> list[ArticleDocument]:
         """The author's own articles, for profile statistics (§4.5)."""

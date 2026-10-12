@@ -327,3 +327,31 @@ async def test_draft_article_accessible_only_by_author_and_admin(app: Any) -> No
     admin_page = await root_client.get(f"/{draft_id}")
     assert admin_page.status_code == 200
     assert "Draft Secrets" in await body_of(admin_page)
+
+
+async def test_draft_deletion_is_author_only(app: Any) -> None:
+    context = app.extensions["neoblogger_context"]
+    root_client = await signup(app, "root")
+    author_client = await signup(app, "author")
+
+    draft_id = await write_article(
+        app, author_client, title="Draft Only", publish=False
+    )
+    admin_page = await root_client.get("/")
+    admin_token = csrf_token_from(await body_of(admin_page))
+
+    # Admin cannot delete author's draft
+    forbidden = await root_client.post(
+        f"/articles/{draft_id}/delete", form={"csrftoken": admin_token}
+    )
+    assert forbidden.status_code == 302
+    assert await context.articles.by_id(draft_id) is not None
+
+    # Author can delete their own draft
+    author_page = await author_client.get(f"/{draft_id}")
+    author_token = csrf_token_from(await body_of(author_page))
+    allowed = await author_client.post(
+        f"/articles/{draft_id}/delete", form={"csrftoken": author_token}
+    )
+    assert allowed.status_code == 302
+    assert await context.articles.by_id(draft_id) is None
