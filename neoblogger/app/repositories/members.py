@@ -104,7 +104,16 @@ class MemberRepository:
                     "session_version": 1,
                 }
             )
-            return str(result.inserted_id), promoted
+            hex_id = str(result.inserted_id)
+            if promoted:
+                earliest = list(members.find({}).sort([("_id", 1)]).limit(1))
+                if earliest and str(earliest[0]["_id"]) != hex_id:
+                    members.update_one(
+                        {"_id": hex_id},
+                        {"$set": {"administrator": False, "publisher": False}},
+                    )
+                    promoted = False
+            return hex_id, promoted
 
         try:
             return await self._database.run(insert)

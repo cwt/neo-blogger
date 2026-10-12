@@ -142,3 +142,53 @@ async def test_meta_version_self_heals_when_missing(
     assert await meta.content_version() == 0
     assert await meta.bump_content_version() == 1
     assert await meta.content_version() == 1
+
+
+async def test_create_first_or_member_promotes_first_only(
+    members: MemberRepository,
+) -> None:
+    id1, p1 = await members.create_first_or_member(
+        "admin1", "a1@x.io", "h", "first-pet", "a"
+    )
+    assert p1 is True
+    m1 = await members.by_id(id1)
+    assert m1 is not None and m1["administrator"] is True and m1["publisher"] is True
+
+    id2, p2 = await members.create_first_or_member(
+        "regular2", "a2@x.io", "h", "first-pet", "a"
+    )
+    assert p2 is False
+    m2 = await members.by_id(id2)
+    assert m2 is not None and m2["administrator"] is False and m2["publisher"] is False
+
+
+async def test_create_first_or_member_reverifies_post_insert(
+    members: MemberRepository, database: Database
+) -> None:
+    # Simulate a race where count_documents({}) was 0, but an earlier member exists
+    def simulate_earlier() -> str:
+        res = database.connection.members.insert_one(
+            {
+                "display_name": "earliest",
+                "email": "earliest@x.io",
+                "password_hash": "h",
+                "security_question_code": "first-pet",
+                "security_answer_hash": "a",
+                "active": True,
+                "administrator": True,
+                "publisher": True,
+                "session_version": 1,
+            }
+        )
+        return str(res.inserted_id)
+
+    await database.run(simulate_earlier)
+    # create_first_or_member should detect it is not the earliest member
+    id_late, promoted = await members.create_first_or_member(
+        "racy", "racy@x.io", "h", "first-pet", "a"
+    )
+    assert promoted is False
+    late_member = await members.by_id(id_late)
+    assert late_member is not None
+    assert late_member["administrator"] is False
+    assert late_member["publisher"] is False
