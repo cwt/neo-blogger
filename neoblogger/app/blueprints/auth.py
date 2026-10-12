@@ -21,6 +21,18 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
     async def signup() -> str | Response:
         if request.method == "POST":
             form = await request.form
+            from ..wiring import (
+                issue_session,
+                request_client,
+                signup_limiter_allow,
+            )
+
+            email = form.get("email", "").strip()
+            if not signup_limiter_allow(
+                request_client(context.proxy_trust), email.lower()
+            ):
+                await flash("Too many attempts. Please wait a few minutes.", "error")
+                return redirect("/signup")
             try:
                 member_id, promoted = await context.accounts.register(
                     form.get("display_name", "").strip(),
@@ -32,7 +44,6 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
             except Exception as error:
                 await flash(str(error), "error")
                 return redirect("/signup")
-            from ..wiring import issue_session
 
             issue_session(member_id)
             await flash("Welcome! Your account has been created.", "success")

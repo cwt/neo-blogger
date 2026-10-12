@@ -38,6 +38,7 @@ __all__ = [
     "request_base",
     "request_client",
     "signin_limiter_allow",
+    "signup_limiter_allow",
 ]
 
 _CONTEXT_KEY = "neoblogger_context"
@@ -48,6 +49,7 @@ _MUTATING_METHODS = frozenset({"POST", "PUT", "DELETE"})
 
 _recovery_limiter = FixedWindowRateLimiter(max_attempts=5, window_seconds=300.0)
 _signin_limiter = FixedWindowRateLimiter(max_attempts=5, window_seconds=300.0)
+_signup_limiter = FixedWindowRateLimiter(max_attempts=5, window_seconds=300.0)
 
 
 def issue_session(member_id: str, session_version: int = 1) -> None:
@@ -76,6 +78,11 @@ def recovery_limiter_allow(peer: str, email: str) -> bool:
 def signin_limiter_allow(peer: str, email: str) -> bool:
     """Rate-limit gate for sign-in attempts."""
     return _signin_limiter.allow(peer, email)
+
+
+def signup_limiter_allow(peer: str, email: str) -> bool:
+    """Rate-limit gate for registration attempts."""
+    return _signup_limiter.allow(peer, email)
 
 
 async def ensure_theme_banners(context: AppContext) -> dict[str, str]:

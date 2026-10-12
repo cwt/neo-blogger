@@ -248,6 +248,40 @@ async def test_signin_rate_limit_blocks_after_attempts(app: Any) -> None:
     assert "Too many attempts" in flashed
 
 
+async def test_signup_rate_limit_blocks_after_attempts(app: Any) -> None:
+    client = app.test_client()
+    page = await client.get("/signup")
+    token = csrf_token_from((await page.get_data()).decode("utf-8"))
+    # First attempt: invalid password so no session is created
+    for i in range(5):
+        response = await client.post(
+            "/signup",
+            form={
+                "display_name": f"spammer{i}",
+                "email": "spam@example.com",
+                "password": "",  # empty password fails registration
+                "question_code": "first-pet",
+                "answer": "rover",
+                "csrftoken": token,
+            },
+        )
+        assert response.status_code == 302
+    limited = await client.post(
+        "/signup",
+        form={
+            "display_name": "spammer_blocked",
+            "email": "spam@example.com",
+            "password": "password123",
+            "question_code": "first-pet",
+            "answer": "rover",
+            "csrftoken": token,
+        },
+    )
+    assert limited.status_code == 302
+    flashed = (await (await client.get("/signup")).get_data()).decode("utf-8")
+    assert "Too many attempts" in flashed
+
+
 async def test_password_recovery_invalidates_existing_session(app: Any) -> None:
     client = app.test_client()
     page_up = await client.get("/signup")
