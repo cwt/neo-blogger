@@ -91,12 +91,6 @@ class ArticleRepository:
 
         return await self._database.run(insert)
 
-    async def delete_many(self, query_filter: dict[str, Any]) -> None:
-        def remove() -> None:
-            self._database.connection.articles.delete_many(query_filter)
-
-        await self._database.run(remove)
-
     async def update_many_snapshots(
         self, author: str, *, author_active: bool, author_publisher: bool
     ) -> None:

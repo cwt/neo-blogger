@@ -11,22 +11,9 @@ from werkzeug.wrappers import Response as WerkzeugResponse
 
 from ..context import AppContext
 from ..services.search import validate_query
+from .blog import page_parameters
 
 __all__ = ["create_discovery_blueprint"]
-
-
-def _page_parameters(context: AppContext) -> tuple[int, int]:
-    try:
-        page = int(request.args.get("page", "1"))
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
-    per_page = max(1, context.config.posts.per_page)
-    maximum = context.config.posts.max_per_page
-    if per_page > maximum:
-        per_page = maximum
-    return page, per_page
 
 
 def create_discovery_blueprint(context: AppContext) -> Blueprint:
@@ -34,7 +21,7 @@ def create_discovery_blueprint(context: AppContext) -> Blueprint:
 
     @blueprint.route("/tag/<name>")
     async def tag_page(name: str) -> str | WerkzeugResponse:
-        page, per_page = _page_parameters(context)
+        page, per_page = page_parameters(context)
         articles, total = await context.article_service.tag_page(
             g.member, name, page, per_page
         )
@@ -55,7 +42,7 @@ def create_discovery_blueprint(context: AppContext) -> Blueprint:
     @blueprint.route("/search")
     async def search() -> str | WerkzeugResponse:
         raw = request.args.get("q", "")
-        page, per_page = _page_parameters(context)
+        page, per_page = page_parameters(context)
         query = validate_query(raw)
         if query is None:
             await flash("Please use only text in your search.", "error")

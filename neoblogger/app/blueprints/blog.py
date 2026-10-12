@@ -16,7 +16,12 @@ from ..text.highlight import highlight_code_blocks
 from ..text.markdown import render_markdown
 from ..text.sanitize import sanitize_html
 
-__all__ = ["HexIdConverter", "create_blog_blueprint", "render_home_page"]
+__all__ = [
+    "HexIdConverter",
+    "create_blog_blueprint",
+    "page_parameters",
+    "render_home_page",
+]
 
 _logger = logging.getLogger(__name__)
 
@@ -25,7 +30,7 @@ _COVER_PICKER_LIMIT = 48
 """Recent uploads offered by the editor cover picker (spec §5.1)."""
 
 
-def _page_parameters(context: AppContext) -> tuple[int, int]:
+def page_parameters(context: AppContext) -> tuple[int, int]:
     """Clamped (page, per_page) from the query string (spec §14, §18)."""
     try:
         page = int(request.args.get("page", "1"))
@@ -40,6 +45,9 @@ def _page_parameters(context: AppContext) -> tuple[int, int]:
     if per_page > maximum:
         per_page = maximum
     return page, per_page
+
+
+_page_parameters = page_parameters
 
 
 class HexIdConverter(BaseConverter):

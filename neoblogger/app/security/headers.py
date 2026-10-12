@@ -2,12 +2,6 @@
 
 __all__ = ["security_headers"]
 
-_CSP = (
-    "default-src 'self'; script-src 'self'; style-src 'self'; "
-    "img-src 'self' data: blob: https:; object-src 'none'; "
-    "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-)
-
 
 def security_headers(*, https: bool, nonce: str | None = None) -> dict[str, str]:
     """The header table for every response; HSTS only in production."""

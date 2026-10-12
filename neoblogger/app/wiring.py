@@ -9,7 +9,7 @@ cache-control policy, and HTML minification.
 
 import datetime
 import secrets
-from typing import Any, cast
+from typing import Any
 
 from quart import Quart, Response, abort, g, render_template, request
 
@@ -32,7 +32,6 @@ from .text.minify import minify_html
 
 __all__ = [
     "assemble",
-    "context_of",
     "drop_session",
     "issue_session",
     "recovery_limiter_allow",
@@ -49,11 +48,6 @@ _MUTATING_METHODS = frozenset({"POST", "PUT", "DELETE"})
 
 _recovery_limiter = FixedWindowRateLimiter(max_attempts=5, window_seconds=300.0)
 _signin_limiter = FixedWindowRateLimiter(max_attempts=5, window_seconds=300.0)
-
-
-def context_of(app: Quart) -> AppContext:
-    """The application context registered by :func:`assemble`."""
-    return cast(AppContext, app.extensions[_CONTEXT_KEY])
 
 
 def issue_session(member_id: str, session_version: int = 1) -> None:
