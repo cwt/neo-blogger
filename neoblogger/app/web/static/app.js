@@ -80,7 +80,7 @@ if (bodyField && typeof EasyMDE !== "undefined") {
     input.click();
   }
 
-  new EasyMDE({
+  const editor = new EasyMDE({
     element: bodyField,
     spellChecker: false,
     autoDownloadFontAwesome: false,
@@ -98,6 +98,12 @@ if (bodyField && typeof EasyMDE !== "undefined") {
       "preview", "side-by-side", "|",
       "guide",
     ],
+  });
+  // Keep the replaced textarea in sync: it stays `required` while hidden,
+  // and browsers refuse to submit a form with an empty required control —
+  // without this, Publish silently does nothing (spec §5.1).
+  editor.codemirror.on("change", () => {
+    editor.codemirror.save();
   });
 } else if (bodyField) {
   // Progressive enhancement fallback: the plain textarea still works.
