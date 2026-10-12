@@ -136,6 +136,28 @@ async def test_search_respects_visibility_filter(
     assert docs[0]["title"] == "public"
 
 
+async def test_search_caps_candidate_window(
+    articles: ArticleRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from neoblogger.app.repositories import articles as articles_module
+
+    monkeypatch.setattr(articles_module, "_MAX_SEARCH_CANDIDATES", 2)
+    for idx in range(5):
+        await articles.create(
+            f"candidate {idx}",
+            "s",
+            "target",
+            "",
+            "a",
+            f"2026-01-0{idx + 1}T00:00:00",
+            [],
+            "published",
+        )
+    docs, total = await articles.search({"status": "published"}, "target", 1, 10)
+    assert total == 2
+    assert len(docs) == 2
+
+
 async def test_update_preserves_snapshots_when_omitted(
     articles: ArticleRepository,
 ) -> None:

@@ -49,6 +49,9 @@ def _normalize(document: dict[str, Any]) -> ArticleDocument:
     return cast(ArticleDocument, normalized_document(document, _ARTICLE_BOOLEANS))
 
 
+_MAX_SEARCH_CANDIDATES = 500
+
+
 class ArticleRepository:
     """All article reads and writes go through the DB executor facade."""
 
@@ -210,7 +213,9 @@ class ArticleRepository:
         def read() -> tuple[list[ArticleDocument], int]:
             connection = self._database.connection
             cursor = connection.articles.find(query_filter)
-            documents = list(cursor.sort([("created", DESCENDING)]))
+            documents = list(
+                cursor.sort([("created", DESCENDING)]).limit(_MAX_SEARCH_CANDIDATES)
+            )
             if not documents:
                 return [], 0
             ordered_ids = rank_by_relevance(
