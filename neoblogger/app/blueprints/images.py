@@ -183,8 +183,10 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
             await flash("Image deleted.", "success")
             return redirect("/upload")
         if using:
+            titles = ", ".join(str(article.get("title", "")) for article in using)
             await flash(
-                f"In use as an article cover by {len(using)} article(s).", "error"
+                f"In use as an article cover by {len(using)} article(s): {titles}.",
+                "error",
             )
         else:
             await flash("You cannot delete that image.", "error")

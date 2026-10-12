@@ -274,6 +274,8 @@ async def test_deletion_guard_refuses_article_covers(app: Any) -> None:
         f"/images/{object_id}/delete", form={"csrftoken": token}
     )
     assert refused.status_code == 302
+    flashed = await body_of(await user_client.get("/upload"))
+    assert "In use as an article cover by 1 article(s): Covered." in flashed
     context = app.extensions["neoblogger_context"]
     assert await context.objects.metadata(object_id) is not None
     assert await context.articles.by_id(article_id) is not None
@@ -292,6 +294,27 @@ async def test_deletion_guard_refuses_article_covers(app: Any) -> None:
     )
     assert allowed.status_code == 302
     assert await context.objects.metadata(object_id) is None
+
+
+async def test_deletion_guard_protects_absolute_url_covers(app: Any) -> None:
+    from .test_web_blog import write_article
+
+    user_client = await signup(app, "user")
+    object_id = await upload_image(app, user_client, "cover.png", tiny_png_bytes())
+    abs_cover = f"https://cdn.example.com/images/{object_id}.webp"
+    await write_article(
+        app, user_client, title="Abs Covered", publish=True, cover=abs_cover
+    )
+    page = await user_client.get("/upload")
+    token = csrf_token_from(await body_of(page))
+    refused = await user_client.post(
+        f"/images/{object_id}/delete", form={"csrftoken": token}
+    )
+    assert refused.status_code == 302
+    flashed = await body_of(await user_client.get("/upload"))
+    assert "In use as an article cover by 1 article(s): Abs Covered." in flashed
+    context = app.extensions["neoblogger_context"]
+    assert await context.objects.metadata(object_id) is not None
 
 
 async def test_cover_picker_lists_uploads(app: Any) -> None:

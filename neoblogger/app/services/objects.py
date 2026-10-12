@@ -188,7 +188,7 @@ class ObjectsService:
             f"/images/{object_id}.{extension}"
             for extension in ("webp", "jpg", "jpeg", "png")
         ]
-        using = await self._articles.covers_in_use_any(variants)
+        using = await self._articles.covers_using_image(object_id, variants)
         if using:
             return False, using
         await self._objects.delete(object_id)

@@ -291,6 +291,27 @@ class ArticleRepository:
 
         return await self._database.run(read)
 
+    async def covers_using_image(
+        self, object_id: str, variants: list[str]
+    ) -> list[ArticleDocument]:
+        """Articles referencing this image object via relative variants or
+        absolute URLs.
+        """
+
+        def read() -> list[ArticleDocument]:
+            pattern = f"/images/{re.escape(object_id)}\\."
+            cursor = self._database.connection.articles.find(
+                {
+                    "$or": [
+                        {"cover_url": {"$in": variants}},
+                        {"cover_url": {"$regex": pattern}},
+                    ]
+                }
+            )
+            return [_normalize(document) for document in cursor]
+
+        return await self._database.run(read)
+
     async def rebuild_search_indexes(self) -> None:
         """Drop and recreate the three per-field FTS indexes (spec §11.4).
 
