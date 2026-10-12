@@ -19,6 +19,8 @@ _CODE_BLOCK = re.compile(
     re.DOTALL,
 )
 
+_EMPTY_BLOCK = re.compile(r"<pre><code>\s*</code></pre>\n?")
+
 _formatter = HtmlFormatter()
 
 
@@ -35,5 +37,10 @@ def _replace(match: re.Match[str]) -> str:
 
 
 def highlight_code_blocks(fragment: str) -> str:
-    """Highlight ``language-*`` code blocks; other markup passes through."""
-    return _CODE_BLOCK.sub(_replace, fragment)
+    """Highlight ``language-*`` code blocks; other markup passes through.
+
+    Empty code blocks (a stray fence with no code, which markdown renders
+    as ``<pre><code></code></pre>``) are dropped: they carry no content
+    and otherwise render as a confusing empty gray rectangle.
+    """
+    return _EMPTY_BLOCK.sub("", _CODE_BLOCK.sub(_replace, fragment))

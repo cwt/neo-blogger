@@ -136,3 +136,11 @@ def test_highlight_survives_lexer_failure(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(highlight_module, "get_lexer_by_name", fail)
     fragment = '<pre><code class="language-python">print(1)</code></pre>'
     assert highlight_code_blocks(fragment) == fragment
+
+
+def test_stray_fence_leaves_no_empty_code_block() -> None:
+    rendered = render_markdown("Great first post! ```python\nx = 1\n```\n")
+    final = highlight_code_blocks(sanitize_html(rendered))
+    assert "<pre><code></code></pre>" not in final
+    # A mid-line fence is literal text per CommonMark (same as GitHub).
+    assert "```python" in final
