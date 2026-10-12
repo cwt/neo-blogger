@@ -114,14 +114,19 @@ async def test_legacy_variant_oversized_serves_webp_content_type(
 
 
 async def test_conditional_request_returns_304(app: Any) -> None:
+    from unittest.mock import patch
+
     client = await signup(app, "root")
     object_id = await upload_image(app, client, "photo.png", tiny_png_bytes())
     first = await client.get(f"/images/{object_id}.webp")
     etag = first.headers["ETag"]
-    conditional = await client.get(
-        f"/images/{object_id}.webp", headers={"If-None-Match": etag}
-    )
-    assert conditional.status_code == 304
+    context = app.extensions["neoblogger_context"]
+    with patch.object(context.objects, "data", wraps=context.objects.data) as mock_data:
+        conditional = await client.get(
+            f"/images/{object_id}.webp", headers={"If-None-Match": etag}
+        )
+        assert conditional.status_code == 304
+        assert not mock_data.called
 
 
 async def test_extension_spoofing_rejected(app: Any) -> None:

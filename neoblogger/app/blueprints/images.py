@@ -120,6 +120,18 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
         registry = await context.objects.metadata(object_id)
         if registry is None or extension not in ("webp", "jpg", "jpeg", "png"):
             _abort(404)
+        etag = registry["md5"]
+        if request.if_none_match and etag in request.if_none_match:
+            response = WerkzeugResponse("", status=304)
+            response.headers["Cache-Control"] = (
+                f"public, max-age={_YEAR_SECONDS}, immutable"
+            )
+            response.headers["ETag"] = f'"{etag}"'
+            last_modified = _http_date(registry)
+            if last_modified:
+                response.headers["Last-Modified"] = last_modified
+            return response
+
         payload = await context.objects.data(object_id)
         if payload is None:
             _abort(404)
@@ -134,12 +146,9 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
                 )
             else:
                 content_type = "image/webp"
-        etag = registry["md5"]
-        if request.if_none_match and etag in request.if_none_match:
-            response = WerkzeugResponse("", status=304)
-        else:
-            response = WerkzeugResponse(payload)
-            response.headers["Content-Type"] = content_type
+
+        response = WerkzeugResponse(payload)
+        response.headers["Content-Type"] = content_type
         response.headers["Cache-Control"] = (
             f"public, max-age={_YEAR_SECONDS}, immutable"
         )
