@@ -30,8 +30,13 @@ async def test_dashboard_statistics(app: Any) -> None:
         app, root_client, title="Stat piece", publish=True, cover="c.webp"
     )
     rendered = await body_of(await root_client.get("/admin"))
-    assert "2" in rendered  # members total
-    assert "1" in rendered  # published
+    assert "<strong>2</strong> members" in rendered
+    assert "<strong>2</strong> active" in rendered
+    assert "<strong>1</strong> administrators" in rendered
+    assert "<strong>1</strong> publishers" in rendered
+    assert "<strong>1</strong> published" in rendered
+    assert "<strong>0</strong> drafts" in rendered
+    assert "<strong>0</strong> comments" in rendered
 
 
 async def test_grant_publisher_makes_articles_public(app: Any) -> None:

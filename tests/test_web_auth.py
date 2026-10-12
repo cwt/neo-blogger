@@ -157,6 +157,16 @@ async def test_csrf_required_for_authenticated_mutations(app: Any) -> None:
     response = await client.post("/signout", form={})
     assert response.status_code == 403
 
+    # Authenticated with mismatched token: refused.
+    wrong = await client.post("/signout", form={"csrftoken": "bad-token"})
+    assert wrong.status_code == 403
+
+    # Authenticated with valid X-CSRFToken header: accepted.
+    profile_page = await client.get("/profile")
+    auth_token = csrf_token_from((await profile_page.get_data()).decode("utf-8"))
+    good_header = await client.post("/signout", headers={"X-CSRFToken": auth_token})
+    assert good_header.status_code == 302
+
 
 async def test_signout_clears_cookie(app: Any) -> None:
     import re

@@ -12,6 +12,12 @@ from neoblogger.app.config import RuntimeConfig
 
 @pytest.fixture
 async def app(tmp_path: Path) -> AsyncIterator[Any]:
+    from neoblogger.app import wiring
+
+    wiring._signin_limiter._buckets.clear()
+    wiring._recovery_limiter._buckets.clear()
+    wiring._signup_limiter._buckets.clear()
+
     config = RuntimeConfig()
     config.database.path = str(tmp_path / "web.db")
     application = build_app(config)
