@@ -77,7 +77,9 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
         if request.method == "POST":
             form = await request.form
             email = form.get("email", "").strip()
-            if not recovery_limiter_allow(request_client(), email.lower()):
+            if not recovery_limiter_allow(
+                request_client(context.proxy_trust), email.lower()
+            ):
                 await flash("Too many attempts. Try again later.", "error")
                 return redirect("/recover")
             member = await context.members.by_email(email)

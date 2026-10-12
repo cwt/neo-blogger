@@ -74,6 +74,20 @@ async def test_cache_key_normalizes_malformed_page(app: Any) -> None:
     await context.database.close()
 
 
+async def test_startup_prewarm_needs_no_request(app: Any) -> None:
+    from neoblogger import build_app
+
+    config = cache_enabled_config()
+    config.database.path = app.extensions["neoblogger_context"].config.database.path
+    fresh = build_app(config)
+    context = fresh.extensions["neoblogger_context"]
+    await context.database.start()
+    await fresh.startup()
+    assert context.response_cache is not None
+    assert context.response_cache.size == 1
+    await context.database.close()
+
+
 async def test_search_pagination_link_encodes_query(app: Any) -> None:
     context = app.extensions["neoblogger_context"]
     context.config.posts.per_page = 1

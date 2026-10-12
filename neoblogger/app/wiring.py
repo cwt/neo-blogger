@@ -22,7 +22,7 @@ from .blueprints.seo import canonical_url_for, create_seo_blueprint, jsonld_docu
 from .context import AppContext
 from .security.csrf import tokens_match
 from .security.headers import security_headers
-from .security.proxy import forwarded_base, forwarded_client
+from .security.proxy import ProxyTrust, forwarded_base, forwarded_client
 from .security.ratelimit import FixedWindowRateLimiter
 from .services.cache import ResponseCache
 from .services.objects import legacy_url, readable_date
@@ -71,22 +71,18 @@ def recovery_limiter_allow(peer: str, email: str) -> bool:
     return _recovery_limiter.allow(peer, email)
 
 
-def request_client() -> str:
+def request_client(trust: ProxyTrust) -> str:
     """The client address for rate-limit keys (§15.8).
 
     Honors ``X-Forwarded-For`` from a trusted adjacent hop only, so a
     reverse proxy's clients do not share one bucket.
     """
-    context: AppContext = g.neoblogger_context
     peer = request.remote_addr or ""
-    return forwarded_client(
-        peer, request.headers.get("X-Forwarded-For"), context.proxy_trust
-    )
+    return forwarded_client(peer, request.headers.get("X-Forwarded-For"), trust)
 
 
-def request_base() -> str:
+def request_base(trust: ProxyTrust) -> str:
     """The fallback base URL for canonical links (§15.8, §16)."""
-    context: AppContext = g.neoblogger_context
     peer = request.remote_addr or ""
     return forwarded_base(
         peer,
@@ -95,7 +91,7 @@ def request_base() -> str:
         request.headers.get("X-Forwarded-Proto"),
         request.headers.get("X-Forwarded-Host"),
         request.url_root,
-        context.proxy_trust,
+        trust,
     )
 
 
@@ -167,7 +163,9 @@ def assemble(app: Quart, context: AppContext) -> None:
         if not (cache.active() and context.response_cache is not None):
             return
         version = await context.meta.content_version()
-        cached = await cache.get(_cache_key(), version)
+        # Page 1 under its validated key; _cache_key() itself is unusable
+        # here — there is no request context during startup.
+        cached = await cache.get("home:1", version)
         if cached is not None:
             return
         async with app.test_request_context("/"):
@@ -176,7 +174,7 @@ def assemble(app: Quart, context: AppContext) -> None:
             rendered = await render_home_page(
                 context, 1, context.config.posts.per_page, None
             )
-            await cache.put(_cache_key(), minify_html(rendered), version)
+            await cache.put("home:1", minify_html(rendered), version)
 
     @app.errorhandler(404)
     async def _not_found(_: Exception) -> tuple[str, int]:
@@ -271,7 +269,7 @@ def assemble(app: Quart, context: AppContext) -> None:
             "breadcrumbs": getattr(g, "breadcrumbs", []),
             "canonical_url": canonical_url_for(
                 context.config.application.base_url,
-                request_base(),
+                request_base(context.proxy_trust),
                 request.path,
             ),
             "jsonld": structured,
