@@ -1,13 +1,16 @@
 """Deploy-time theme artwork generation (tech-req §10).
 
-Usage: ``neoblogger-theme generate [-c CONFIG] [--force]``
+Usage: ``neoblogger-theme generate [-c CONFIG] [-e ENV_FILE] [--force]``
 
-Generates one banner per page family with the Agnes Image 2.5 model and
-stores the set as ordinary gallery images owned by ``"theme"``. Runs
-once: an existing set is only completed, never silently replaced (pass
-``--force`` to wipe and regenerate). Without ``AGNES_API_KEY`` (env var
-or ``./.env``) the command refuses and the app keeps rendering the
-themeless default — nothing is ever fetched at runtime.
+In Neo-Blogger, theme assets designate deploy-time 21:9 page-family banners
+generated once with Agnes Image 2.5 and stored as ordinary gallery
+images owned by ``"theme"`` (palettes and typography remain standard
+self-hosted Pico CSS).
+
+Runs once: an existing set is only completed, never silently replaced (pass
+``--force`` to wipe and regenerate). Without ``AGNES_API_KEY`` (env var,
+``--env-file``, or ``./.env``) the command refuses and the app keeps
+rendering the themeless default — nothing is ever fetched at runtime.
 """
 
 import argparse
@@ -20,7 +23,8 @@ import sys
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from PIL import Image
@@ -29,10 +33,28 @@ from ..app.config import load_config
 from ..app.context import AppContext
 from ..app.services.theme import THEME_BANNER_KEY, THEME_OWNER
 
-__all__ = ["BANNERS", "RATIO", "SIZE", "build_parser", "main", "prompt_for"]
+__all__ = [
+    "API_ENDPOINT",
+    "BANNERS",
+    "DEFAULT_API_ENDPOINT",
+    "DEFAULT_MODEL",
+    "MODEL",
+    "RATIO",
+    "SIZE",
+    "build_parser",
+    "main",
+    "prompt_for",
+    "read_dotenv",
+    "resolve_dotenv_path",
+    "resolve_endpoint",
+    "resolve_key",
+    "resolve_model",
+]
 
-API_ENDPOINT = "https://apihub.agnes-ai.com/v1/images/generations"
-MODEL = "agnes-image-2.5-flash"
+DEFAULT_API_ENDPOINT = "https://apihub.agnes-ai.com/v1/images/generations"
+DEFAULT_MODEL = "agnes-image-2.5-flash"
+API_ENDPOINT = DEFAULT_API_ENDPOINT
+MODEL = DEFAULT_MODEL
 SIZE = "1K"
 RATIO = "21:9"
 REQUEST_TIMEOUT_SECONDS = 180
@@ -102,18 +124,59 @@ def read_dotenv(path: str) -> dict[str, str]:
     return values
 
 
+def resolve_dotenv_path(
+    explicit: str | None = None, config_path: str | None = None
+) -> str:
+    """The path to .env: explicit option first, then config dir, then ./.env."""
+    if explicit:
+        return explicit
+    if config_path:
+        adjacent = Path(config_path).parent / ".env"
+        if adjacent.is_file():
+            return str(adjacent)
+    return ".env"
+
+
 def resolve_key(environ: Mapping[str, str], dotenv_path: str) -> str:
-    """The Agnes key: explicit environment first, then ``./.env``."""
+    """The Agnes key: explicit environment first, then the dotenv file."""
     if environ.get("AGNES_API_KEY", "").strip():
         return environ["AGNES_API_KEY"].strip()
     return read_dotenv(dotenv_path).get("AGNES_API_KEY", "").strip()
 
 
-def _post_json(key: str, payload: dict[str, Any]) -> dict[str, Any]:
+def resolve_endpoint(environ: Mapping[str, str], dotenv_path: str) -> str:
+    """The generation API endpoint: env var first, then dotenv, then default."""
+    for key in ("AGNES_API_ENDPOINT", "AGNES_ENDPOINT"):
+        val = environ.get(key, "").strip()
+        if val:
+            return val
+    dotenv = read_dotenv(dotenv_path)
+    for key in ("AGNES_API_ENDPOINT", "AGNES_ENDPOINT"):
+        val = dotenv.get(key, "").strip()
+        if val:
+            return val
+    return DEFAULT_API_ENDPOINT
+
+
+def resolve_model(environ: Mapping[str, str], dotenv_path: str) -> str:
+    """The generation model: AGNES_MODEL env var, then dotenv, then default."""
+    val = environ.get("AGNES_MODEL", "").strip()
+    if val:
+        return val
+    dotenv = read_dotenv(dotenv_path)
+    val = dotenv.get("AGNES_MODEL", "").strip()
+    if val:
+        return val
+    return DEFAULT_MODEL
+
+
+def _post_json(
+    key: str, payload: dict[str, Any], *, endpoint: str = DEFAULT_API_ENDPOINT
+) -> dict[str, Any]:
     """POST the generation request; transport errors propagate."""
     body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(
-        API_ENDPOINT,
+        endpoint,
         data=body,
         headers={
             "Authorization": f"Bearer {key}",
@@ -126,13 +189,15 @@ def _post_json(key: str, payload: dict[str, Any]) -> dict[str, Any]:
         return document
 
 
-def _fetch_pixels(key: str, payload: dict[str, Any]) -> bytes:
+def _fetch_pixels(
+    key: str, payload: dict[str, Any], *, endpoint: str = DEFAULT_API_ENDPOINT
+) -> bytes:
     """Run one generation; returns the raw image bytes.
 
     Prefers inline Base64 (no second download); falls back to fetching
     the result URL when the service returns one instead.
     """
-    document = _post_json(key, payload)
+    document = _post_json(key, payload, endpoint=endpoint)
     entries = document.get("data", [])
     if not entries:
         raise ValueError("empty image response")
@@ -161,9 +226,9 @@ def _to_webp(raw: bytes) -> bytes:
     return buffer.getvalue()
 
 
-def _generation_payload(name: str) -> dict[str, Any]:
+def _generation_payload(name: str, *, model: str = DEFAULT_MODEL) -> dict[str, Any]:
     return {
-        "model": MODEL,
+        "model": model,
         "prompt": prompt_for(name),
         "size": SIZE,
         "ratio": RATIO,
@@ -188,19 +253,24 @@ async def _clear_theme(context: AppContext) -> int:
 
 
 def _now_iso() -> str:
-    return datetime.now().isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
-async def run(config_path: str | None, *, force: bool) -> int:
+async def run(
+    config_path: str | None, *, force: bool, env_file: str | None = None
+) -> int:
     """Generate the missing banners (everything with ``--force``)."""
-    key = resolve_key(os.environ, ".env")
+    dotenv_path = resolve_dotenv_path(env_file, config_path)
+    key = resolve_key(os.environ, dotenv_path)
     if not key:
         print(
-            "AGNES_API_KEY is not set (env var or ./.env). Nothing generated; "
+            f"AGNES_API_KEY is not set (env var or {dotenv_path}). Nothing generated; "
             "the app keeps rendering the themeless default.",
             file=sys.stderr,
         )
         return 2
+    endpoint = resolve_endpoint(os.environ, dotenv_path)
+    model = resolve_model(os.environ, dotenv_path)
     context = AppContext.build(load_config(config_path))
     try:
         await context.database.start()
@@ -222,8 +292,14 @@ async def run(config_path: str | None, *, force: bool) -> int:
                 print(f"Resuming with {len(missing)} missing banner(s).")
         for name in missing:
             print(f"Generating {name} ...", flush=True)
+
+            def fetch_and_convert(target: str = name) -> bytes:
+                payload = _generation_payload(target, model=model)
+                raw = _fetch_pixels(key, payload, endpoint=endpoint)
+                return _to_webp(raw)
+
             try:
-                webp = _to_webp(_fetch_pixels(key, _generation_payload(name)))
+                webp = await asyncio.to_thread(fetch_and_convert)
             except (urllib.error.URLError, ValueError, OSError) as error:
                 print(f"Failed to generate {name!r}: {error}", file=sys.stderr)
                 print(
@@ -262,6 +338,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Path to neo-blogger.toml configuration file.",
     )
+    parser.add_argument(
+        "--env-file",
+        "-e",
+        default=None,
+        help="Path to .env file for AGNES_API_KEY (default: ./.env).",
+    )
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
     generate = subparsers.add_parser("generate", help="Generate missing banners.")
     generate.add_argument(
@@ -274,10 +356,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Entry point: ``neoblogger-theme generate [-c CONFIG] [--force]``."""
+    """Entry point: ``neoblogger-theme generate [-c CONFIG] [-e ENV] [--force]``."""
     parser = build_parser()
     args = parser.parse_args(argv)
-    code = asyncio.run(args.func(args.config, force=args.force))
+    code = asyncio.run(args.func(args.config, force=args.force, env_file=args.env_file))
     if code != 0:
         sys.exit(code)
 

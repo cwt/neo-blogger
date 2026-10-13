@@ -211,6 +211,67 @@ def test_theme_dotenv_parsing(tmp_path: Path) -> None:
     assert resolve_key({}, str(tmp_path / "missing.env")) == ""
 
 
+def test_theme_endpoint_and_model_resolution(tmp_path: Path) -> None:
+    from neoblogger.cli.theme import (
+        DEFAULT_API_ENDPOINT,
+        DEFAULT_MODEL,
+        resolve_endpoint,
+        resolve_model,
+    )
+
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(
+        "AGNES_API_ENDPOINT=https://custom.endpoint.com/v1\nAGNES_MODEL=custom-model\n",
+        encoding="utf-8",
+    )
+    assert resolve_endpoint({}, str(tmp_path / "missing.env")) == DEFAULT_API_ENDPOINT
+    assert resolve_model({}, str(tmp_path / "missing.env")) == DEFAULT_MODEL
+
+    assert resolve_endpoint({}, str(dotenv)) == "https://custom.endpoint.com/v1"
+    assert resolve_model({}, str(dotenv)) == "custom-model"
+
+    env = {
+        "AGNES_API_ENDPOINT": "https://env.endpoint.com/v1",
+        "AGNES_MODEL": "env-model",
+    }
+    assert resolve_endpoint(env, str(dotenv)) == "https://env.endpoint.com/v1"
+    assert resolve_model(env, str(dotenv)) == "env-model"
+
+
+def test_theme_dotenv_path_resolution(tmp_path: Path) -> None:
+    from neoblogger.cli.theme import resolve_dotenv_path
+
+    assert resolve_dotenv_path("/custom/.env", "/other/config.toml") == "/custom/.env"
+
+    cfg_dir = tmp_path / "cfg"
+    cfg_dir.mkdir()
+    cfg_file = cfg_dir / "neo-blogger.toml"
+    cfg_file.write_text("[app]\n", encoding="utf-8")
+    adjacent_env = cfg_dir / ".env"
+    adjacent_env.write_text("AGNES_API_KEY=k\n", encoding="utf-8")
+    assert resolve_dotenv_path(None, str(cfg_file)) == str(adjacent_env)
+
+    assert resolve_dotenv_path(None, "/nowhere/neo-blogger.toml") == ".env"
+    assert resolve_dotenv_path(None, None) == ".env"
+
+
+def test_theme_parser_env_file_flag() -> None:
+    from neoblogger.cli.theme import build_parser
+
+    parser = build_parser()
+    args = parser.parse_args(["-e", "custom.env", "generate", "--force"])
+    assert args.env_file == "custom.env"
+    assert args.force is True
+    assert args.subcommand == "generate"
+
+
+def test_theme_now_iso_utc() -> None:
+    from neoblogger.cli.theme import _now_iso
+
+    iso = _now_iso()
+    assert "+00:00" in iso or iso.endswith("Z")
+
+
 async def test_theme_generate_refuses_without_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
