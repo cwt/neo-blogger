@@ -6,13 +6,17 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
+import neosqlite
 import pytest
 
 from neoblogger.app.config import DatabaseConfig
+from neoblogger.app.repositories.articles import ArticleRepository
 from neoblogger.app.repositories.db import (
     Database,
     DatabaseNotStartedError,
+    _tokenizer_library_candidates,
     backfill_articles,
+    ensure_indexes,
     run_backfills,
 )
 from neoblogger.app.repositories.documents import document_id
@@ -282,3 +286,126 @@ async def test_email_unique_index_rejects_duplicates(database: Database) -> None
 
     with pytest.raises(sqlite3.IntegrityError):
         await database.run(seed)
+
+
+def test_tokenizer_library_candidates_ordering() -> None:
+    """Verify v2 vs v1 legacy library ordering matches SQLite version."""
+    v2_ordered = _tokenizer_library_candidates(
+        "/usr/local/lib/libfts5_icu_th.so", sqlite_version=(3, 47, 0)
+    )
+    assert v2_ordered == [
+        "/usr/local/lib/libfts5_icu_th.so",
+        "/usr/local/lib/libfts5_icu_th_legacy.so",
+    ]
+
+    v1_ordered = _tokenizer_library_candidates(
+        "/usr/local/lib/libfts5_icu_th.so", sqlite_version=(3, 45, 1)
+    )
+    assert v1_ordered == [
+        "/usr/local/lib/libfts5_icu_th_legacy.so",
+        "/usr/local/lib/libfts5_icu_th.so",
+    ]
+
+    from_legacy = _tokenizer_library_candidates(
+        "/usr/local/lib/libfts5_icu_th_legacy.so", sqlite_version=(3, 47, 0)
+    )
+    assert from_legacy == [
+        "/usr/local/lib/libfts5_icu_th.so",
+        "/usr/local/lib/libfts5_icu_th_legacy.so",
+    ]
+
+    assert _tokenizer_library_candidates("") == []
+
+
+async def test_tokenizer_fallback_library_loading(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Probe fallback to legacy build when primary library fails."""
+    original_init = neosqlite.Connection.__init__
+    attempts: list[str] = []
+
+    def fake_init(self: neosqlite.Connection, *args: Any, **kwargs: Any) -> None:
+        tokenizers = kwargs.get("tokenizers")
+        if tokenizers:
+            _name, path = tokenizers[0]
+            attempts.append(path)
+            if "legacy" not in path:
+                raise sqlite3.OperationalError("FTS5 v2 API not available")
+            kwargs.pop("tokenizers", None)
+            original_init(self, *args, **kwargs)
+            return
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(neosqlite.Connection, "__init__", fake_init)
+
+    db = Database(
+        DatabaseConfig(
+            path=str(tmp_path / "fallback.db"),
+            tokenizer="ascii",
+            tokenizer_library="/usr/local/lib/libfts5_icu_ascii.so",
+        )
+    )
+    await db.start()
+    assert db.active_tokenizer == "ascii"
+    assert len(attempts) >= 2
+    assert any("legacy" in a for a in attempts)
+    await db.close()
+
+
+def test_ensure_indexes_applies_tokenizer() -> None:
+    """Direct ensure_indexes call must pass tokenizer through to DDL."""
+    conn = neosqlite.Connection(":memory:")
+    ensure_indexes(conn, tokenizer="ascii")
+    sql = (
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='articles_title_fts'"
+    )
+    row = conn.db.execute(sql).fetchone()
+    assert row is not None and "TOKENIZE=ascii" in str(row[0])
+    conn.close()
+
+
+async def test_fts_ddl_gated_on_tokenizer_load(tmp_path: Path) -> None:
+    """Index DDL must gate on successful tokenizer load; rebuild uses active."""
+    # 1. Missing library: active_tokenizer stays None, DDL uses default tokenizer
+    db_failed = Database(
+        DatabaseConfig(
+            path=str(tmp_path / "unloaded.db"),
+            tokenizer="icu_th",
+            tokenizer_library=str(tmp_path / "missing.so"),
+        )
+    )
+    await db_failed.start()
+    assert db_failed.active_tokenizer is None
+
+    def read_ddl_failed() -> str:
+        sql = (
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='table' AND name='articles_title_fts'"
+        )
+        row = db_failed.connection.db.execute(sql).fetchone()
+        return str(row[0]) if row else ""
+
+    ddl_unloaded = await db_failed.run(read_ddl_failed)
+    assert "TOKENIZE=icu_th" not in ddl_unloaded
+    assert "USING FTS5(title, )" in ddl_unloaded
+    await db_failed.close()
+
+    # 2. Rebuilding search indexes with active_tokenizer uses configured tokenizer
+    db_custom = Database(DatabaseConfig(path=str(tmp_path / "custom.db")))
+    await db_custom.start()
+    # Emulate active tokenizer (e.g. built-in "ascii")
+    db_custom._active_tokenizer = "ascii"
+    repo = ArticleRepository(db_custom)
+    await repo.rebuild_search_indexes()
+
+    def read_ddl_rebuilt() -> str:
+        sql = (
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='table' AND name='articles_title_fts'"
+        )
+        row = db_custom.connection.db.execute(sql).fetchone()
+        return str(row[0]) if row else ""
+
+    ddl_rebuilt = await db_custom.run(read_ddl_rebuilt)
+    assert "TOKENIZE=ascii" in ddl_rebuilt
+    await db_custom.close()

@@ -1,7 +1,9 @@
 """Tests for the maintenance CLIs: reindex and admin repair (tech-req §5.7)."""
 
 from pathlib import Path
+from typing import Any
 
+import neosqlite
 import pytest
 
 from neoblogger.app.config import load_config
@@ -100,6 +102,65 @@ async def test_reindex_honors_config_path(tmp_path: Path) -> None:
         assert docs[0]["title"] == "Indexed"
     finally:
         await context.close()
+
+
+async def test_reindex_with_configured_tokenizer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_init = neosqlite.Connection.__init__
+
+    def fake_init(self: neosqlite.Connection, *args: Any, **kwargs: Any) -> None:
+        kwargs.pop("tokenizers", None)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(neosqlite.Connection, "__init__", fake_init)
+
+    db_file = tmp_path / "tok_reindex.db"
+    cfg_file = tmp_path / "tok_reindex.toml"
+    cfg_file.write_text(
+        f"""[application]
+secret_key = "test-secret-key-sufficiently-long-for-testing"
+
+[database]
+path = "{db_file}"
+tokenizer = "ascii"
+tokenizer_library = "/usr/local/lib/libfts5_icu_ascii.so"
+"""
+    )
+    context = AppContext.build(load_config(str(cfg_file)))
+    try:
+        await context.database.start()
+        await context.articles.create(
+            "Tokenizer Article",
+            "subtitle",
+            "body text to index",
+            "",
+            "alice",
+            "2026-01-01T00:00:00",
+            [],
+            "published",
+        )
+    finally:
+        await context.close()
+
+    await reindex_run(str(cfg_file))
+
+    context2 = AppContext.build(load_config(str(cfg_file)))
+    try:
+        await context2.database.start()
+
+        def check_ddl() -> str:
+            sql = (
+                "SELECT sql FROM sqlite_master "
+                "WHERE type='table' AND name='articles_title_fts'"
+            )
+            row = context2.database.connection.db.execute(sql).fetchone()
+            return str(row[0]) if row else ""
+
+        ddl = await context2.database.run(check_ddl)
+        assert "TOKENIZE=ascii" in ddl
+    finally:
+        await context2.close()
 
 
 def test_theme_manifest_covers_every_banner() -> None:

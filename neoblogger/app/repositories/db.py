@@ -43,7 +43,49 @@ def _fts_table_exists(connection: Any, collection: str, field: str) -> bool:
     return row is not None
 
 
-def ensure_indexes(connection: neosqlite.Connection) -> None:
+def _tokenizer_library_candidates(
+    library: str, *, sqlite_version: tuple[int, int, int] | None = None
+) -> list[str]:
+    """Return library path candidates ordered by SQLite FTS5 API compatibility.
+
+    FTS5 API v2 (iVersion >= 3, providing xCreateTokenizer_v2) requires
+    SQLite >= 3.47.0. Earlier releases (e.g. SQLite 3.45.1 on Ubuntu 24.04 LTS)
+    support FTS5 API v1 only, matching the '_legacy' .so build artifacts
+    (tech-req §5.8, §12.2).
+    """
+    if not library:
+        return []
+    path = Path(library)
+    name = path.name
+    parent = path.parent
+    suffix = "".join(path.suffixes)
+    stem = name[: len(name) - len(suffix)] if suffix else name
+    if stem.endswith("_legacy"):
+        v1_name = name
+        v2_name = f"{stem[:-7]}{suffix}"
+    else:
+        v2_name = name
+        v1_name = f"{stem}_legacy{suffix}"
+    v2_path = str(parent / v2_name) if str(parent) not in ("", ".") else v2_name
+    v1_path = str(parent / v1_name) if str(parent) not in ("", ".") else v1_name
+
+    version = (
+        sqlite_version if sqlite_version is not None else sqlite3.sqlite_version_info
+    )
+    ordered = [v2_path, v1_path] if version >= (3, 47, 0) else [v1_path, v2_path]
+
+    seen: set[str] = set()
+    result: list[str] = []
+    for cand in ordered:
+        if cand not in seen:
+            seen.add(cand)
+            result.append(cand)
+    return result
+
+
+def ensure_indexes(
+    connection: neosqlite.Connection, tokenizer: str | None = None
+) -> None:
     """Create all documented indexes idempotently (spec §12.2, tech-req §5.4)."""
     articles = connection.articles
     articles.create_index("created", datetime_field=True)
@@ -57,7 +99,7 @@ def ensure_indexes(connection: neosqlite.Connection) -> None:
     )
     for field in ("title", "subtitle", "body"):
         if not _fts_table_exists(connection, "articles", field):
-            articles.create_search_index(field)
+            articles.create_search_index(field, tokenizer=tokenizer)
     comments = connection.comments
     comments.create_index("created")
     comments.create_index("article_id")
@@ -162,6 +204,7 @@ class Database:
         self._executor: ThreadPoolExecutor | None = None
         self._connection: neosqlite.Connection | None = None
         self._start_lock = asyncio.Lock()
+        self._active_tokenizer: str | None = None
 
     async def start(self) -> None:
         """Open the connection on the executor thread; initialize idempotently.
@@ -180,7 +223,7 @@ class Database:
             self._connection = connection
 
             def initialize() -> None:
-                ensure_indexes(connection)
+                ensure_indexes(connection, tokenizer=self._active_tokenizer)
                 run_backfills(connection)
 
             await self.run(initialize)
@@ -188,6 +231,7 @@ class Database:
     async def close(self) -> None:
         """Close the connection and stop the executor (idempotent)."""
         async with self._start_lock:
+            self._active_tokenizer = None
             connection = self._connection
             self._connection = None
             if connection is not None:
@@ -209,6 +253,11 @@ class Database:
         return await loop.run_in_executor(executor, work)
 
     @property
+    def active_tokenizer(self) -> str | None:
+        """The active FTS5 tokenizer name, or None if using default (spec §12.2)."""
+        return self._active_tokenizer
+
+    @property
     def connection(self) -> Any:
         """The opened engine connection, for use inside ``run()`` work only."""
         if self._connection is None:
@@ -223,17 +272,34 @@ class Database:
             parent.mkdir(parents=True, exist_ok=True)
         tokenizer = self._config.tokenizer
         library = self._config.tokenizer_library
+        self._active_tokenizer = None
         if tokenizer and library:
-            try:
-                return neosqlite.Connection(path, tokenizers=[(tokenizer, library)])
-            except sqlite3.OperationalError as error:
-                _logger.warning(
-                    "tokenizer %r (%s) could not be loaded (%s); "
-                    "continuing with the default tokenizer (spec §12.2)",
-                    tokenizer,
-                    library,
-                    error,
-                )
+            candidates = _tokenizer_library_candidates(library)
+            last_error: Exception | None = None
+            for candidate in candidates:
+                try:
+                    conn = neosqlite.Connection(
+                        path, tokenizers=[(tokenizer, candidate)]
+                    )
+                    self._active_tokenizer = tokenizer
+                    if candidate != library:
+                        _logger.info(
+                            "loaded tokenizer %r from fallback %s (requested %s)",
+                            tokenizer,
+                            candidate,
+                            library,
+                        )
+                    return conn
+                except sqlite3.OperationalError as error:
+                    last_error = error
+                    continue
+            _logger.warning(
+                "tokenizer %r (%s) could not be loaded (%s); "
+                "continuing with the default tokenizer (spec §12.2)",
+                tokenizer,
+                library,
+                last_error,
+            )
         elif tokenizer or library:
             _logger.warning(
                 "tokenizer and tokenizer_library must both be set; "

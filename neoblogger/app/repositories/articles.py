@@ -315,9 +315,10 @@ class ArticleRepository:
 
         def rebuild() -> None:
             articles = self._database.connection.articles
+            tokenizer = self._database.active_tokenizer
             for field in ("title", "subtitle", "body"):
                 articles.drop_search_index(field)
-                articles.create_search_index(field)
+                articles.create_search_index(field, tokenizer=tokenizer)
 
         await self._database.run(rebuild)
 
