@@ -1,6 +1,6 @@
 """Deploy-time theme artwork generation (tech-req §10).
 
-Usage: ``neoblogger-theme generate [-c CONFIG] [-e ENV_FILE] [--force]``
+Usage: ``neoblogger-theme [-c CONFIG] [-e ENV_FILE] generate [--force]``
 
 In Neo-Blogger, theme assets designate deploy-time 21:9 page-family banners
 generated once with Agnes Image 2.5 and stored as ordinary gallery
@@ -356,7 +356,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Entry point: ``neoblogger-theme generate [-c CONFIG] [-e ENV] [--force]``."""
+    """Entry point: ``neoblogger-theme [-c CONFIG] [-e ENV] generate [--force]``."""
     parser = build_parser()
     args = parser.parse_args(argv)
     code = asyncio.run(args.func(args.config, force=args.force, env_file=args.env_file))

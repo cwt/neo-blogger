@@ -88,7 +88,7 @@ podman exec -it neo-blogger <command> [args...]
   administrator (startup only auto-promotes a lone member).
 - `python -m neoblogger.cli.reindex [config]` — drop and rebuild the
   title/subtitle/body full-text indexes (required after tokenizer changes).
-- `python -m neoblogger.cli.theme generate [-c CONFIG] [--force]` — one-time
+- `python -m neoblogger.cli.theme [-c CONFIG] [-e ENV_FILE] generate [--force]` — one-time
   theme artwork, see below.
 
 ### Theme artwork (optional, deploy-time)
