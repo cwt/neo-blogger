@@ -29,20 +29,6 @@ class DatabaseNotStartedError(RuntimeError):
     """Raised when repository work runs before ``start()`` or after ``close()``."""
 
 
-def _fts_table_exists(connection: Any, collection: str, field: str) -> bool:
-    """Whether the engine already built ``<collection>_<field>_fts`` (S8).
-
-    Creating is idempotent on fresh databases (S4), but re-populating on a
-    restart against an existing indexed database trips the engine's
-    populate INSERT with duplicate rowids; skip in that case.
-    """
-    table = f"{collection}_{field}_fts"
-    row = connection.db.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?", (table,)
-    ).fetchone()
-    return row is not None
-
-
 def _tokenizer_library_candidates(
     library: str, *, sqlite_version: tuple[int, int, int] | None = None
 ) -> list[str]:
@@ -97,8 +83,9 @@ def ensure_indexes(
     articles.create_index(
         [("author", ASCENDING), ("status", ASCENDING), ("created", DESCENDING)]
     )
+    existing_search_indexes = set(articles.list_search_indexes())
     for field in ("title", "subtitle", "body"):
-        if not _fts_table_exists(connection, "articles", field):
+        if field not in existing_search_indexes:
             articles.create_search_index(field, tokenizer=tokenizer)
     comments = connection.comments
     comments.create_index("created")
