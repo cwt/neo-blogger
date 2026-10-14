@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = "==3.14.*"
 
 [[package]]
@@ -466,7 +466,7 @@ requires-dist = [
     { name = "gunicorn", marker = "extra == 'serve'", specifier = ">=23" },
     { name = "itsdangerous", specifier = ">=2.2" },
     { name = "markdown-it-py", specifier = ">=3" },
-    { name = "neosqlite", specifier = ">=1.17" },
+    { name = "neosqlite", specifier = ">=1.17.2" },
     { name = "nh3", specifier = ">=0.2" },
     { name = "pillow", specifier = ">=11.3" },
     { name = "pydantic", specifier = ">=2.12" },
@@ -488,11 +488,11 @@ dev = [
 
 [[package]]
 name = "neosqlite"
-version = "1.17.1"
+version = "1.17.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ed/e0/9b83f079f1cdab164a5d430ccd3dd21a5274114d6ad1a0b1c44141ebcd29/neosqlite-1.17.1.tar.gz", hash = "sha256:92edd3606d41cca1aa59ea20c9e8a83c9cbded7ff6779a01dfc0b80de1d97b23", size = 306446, upload-time = "2026-10-01T03:04:48.588Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2d/8b/f1efa263f1cfbb703a87941e19a74ed34f77d47b14d029f2d4ac39a338c1/neosqlite-1.17.2.tar.gz", hash = "sha256:8dc38a911f0541a9566e51d53e8cad540eb7b0d51334dcc76b8d5fbf8cb5c99e", size = 309511, upload-time = "2026-10-14T07:35:21.556Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/2b/b37a59da38239c6fdfa4a564efec0624260e36dba36b8f754bd24e049bc3/neosqlite-1.17.1-py3-none-any.whl", hash = "sha256:b88dc7698660d7d2137505a0cdfb1568ed85c9a3d66fdd665fd8716a33ac228f", size = 366832, upload-time = "2026-10-01T03:04:50.636Z" },
+    { url = "https://files.pythonhosted.org/packages/03/31/229342941753ce209f231a71fd7b6b63a8a3b9e0e334b7ad77222f781157/neosqlite-1.17.2-py3-none-any.whl", hash = "sha256:c8e79ae64b015a9753801cdee9d0cac95b5065bb18f29983c8fde15e97c373b4", size = 369931, upload-time = "2026-10-14T07:35:24.23Z" },
 ]
 
 [[package]]

@@ -1,14 +1,11 @@
 """Uploaded-image object store (spec §10, tech-req §5.5, Spike S3).
 
 Storage is the engine's GridFS: a registry (``fs_files``) plus chunked
-payloads (``fs_chunks``). The bucket is constructed on the raw sqlite
-handle — the ``Connection`` object itself is not accepted (S3 API trap).
-Registry metadata: owner, original filename, alt text, upload time,
-content type (spec §10.2).
+payloads (``fs_chunks``). Registry metadata: owner, original filename,
+alt text, upload time, content type (spec §10.2).
 """
 
 import io
-import json
 from typing import Any
 
 from neosqlite.gridfs import GridFSBucket, NoFile
@@ -28,8 +25,8 @@ class ObjectRepository:
         self._database = database
 
     def _bucket(self) -> GridFSBucket:
-        """The bucket on the raw sqlite handle (S3 API trap, §5.5)."""
-        return GridFSBucket(self._database.connection.db)
+        """The bucket instance on the connection."""
+        return GridFSBucket(self._database.connection)
 
     async def upload(
         self,
@@ -106,41 +103,28 @@ class ObjectRepository:
     async def list_for(
         self, owner: str | None, page: int, per_page: int
     ) -> tuple[list[dict[str, Any]], int]:
-        """Gallery listing, newest first (§10.3).
-
-        The ``fs_files`` registry is relational (no ``data`` column), so
-        aggregation and count are engine-unsupported there; listing and
-        counting run as raw SQL with ``json_extract`` over the metadata
-        JSON text (verified probe, 2026-10-02).
-        """
+        """Gallery listing, newest first (§10.3)."""
 
         def read() -> tuple[list[dict[str, Any]], int]:
+            bucket = self._bucket()
             connection = self._database.connection
-            present = connection.db.execute(
-                "SELECT COUNT(*) FROM sqlite_master"
-                " WHERE type='table' AND name='fs_files'"
-            ).fetchone()[0]
-            if not present:
+            query = {"metadata.owner": owner} if owner else {}
+            count = connection.fs.files.count_documents(query)
+            if count == 0:
                 return [], 0
-            where = "WHERE json_extract(metadata, '$.owner') = ?" if owner else ""
-            parameters: list[object] = [owner] if owner else []
-            count = int(
-                connection.db.execute(
-                    f"SELECT COUNT(*) FROM fs_files {where}", parameters
-                ).fetchone()[0]
+            cursor = (
+                bucket.find(query)
+                .sort("uploadDate", -1)
+                .skip((page - 1) * per_page)
+                .limit(per_page)
             )
-            rows = connection.db.execute(
-                "SELECT _id, filename, metadata FROM fs_files "
-                f"{where} ORDER BY uploadDate DESC LIMIT ? OFFSET ?",
-                [*parameters, per_page, (page - 1) * per_page],
-            ).fetchall()
             listing = [
                 {
-                    "id": str(row[0]),
-                    "filename": str(row[1]),
-                    "metadata": dict(json.loads(str(row[2]))),
+                    "id": str(grid_out._id),
+                    "filename": str(grid_out.filename),
+                    "metadata": dict(grid_out.metadata or {}),
                 }
-                for row in rows
+                for grid_out in cursor
             ]
             return listing, count
 

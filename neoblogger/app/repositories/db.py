@@ -98,6 +98,9 @@ def ensure_indexes(
     members.create_index(
         [("administrator", ASCENDING), ("publisher", ASCENDING), ("active", ASCENDING)]
     )
+    from neosqlite.gridfs import GridFSBucket
+
+    GridFSBucket(connection)
 
 
 def ensure_content_version(connection: neosqlite.Connection) -> None:

@@ -12,34 +12,9 @@ from typing import Any, cast
 from neosqlite import DESCENDING
 
 from .db import Database
-from .documents import ArticleDocument, document_id, normalized_document
+from .documents import ArticleDocument, normalized_document
 
-__all__ = ["ArticleRepository", "rank_by_relevance"]
-
-
-def rank_by_relevance(connection: Any, hex_ids: list[str], term: str) -> list[str]:
-    """Order hex ids by summed FTS5 ``bm25`` relevance (lower is better).
-
-    Each per-field index contributes its own ``bm25`` score; documents are
-    grouped and ranked best-first. Runs on the raw sqlite handle (same
-    sanctioned pattern as the GridFS buckets, §5.5).
-    """
-    placeholders = ", ".join("?" for _ in hex_ids)
-    sql = (
-        "SELECT a._id FROM articles a JOIN ("
-        " SELECT rowid AS rid, bm25(articles_title_fts) AS s"
-        " FROM articles_title_fts WHERE title MATCH ?"
-        " UNION ALL"
-        " SELECT rowid, bm25(articles_subtitle_fts)"
-        " FROM articles_subtitle_fts WHERE subtitle MATCH ?"
-        " UNION ALL"
-        " SELECT rowid, bm25(articles_body_fts)"
-        " FROM articles_body_fts WHERE body MATCH ?"
-        f") f ON f.rid = a.id WHERE a._id IN ({placeholders})"
-        " GROUP BY a._id ORDER BY SUM(f.s) ASC"
-    )
-    rows = connection.db.execute(sql, (term, term, term, *hex_ids)).fetchall()
-    return [str(row[0]) for row in rows]
+__all__ = ["ArticleRepository"]
 
 
 _ARTICLE_BOOLEANS = ("author_active", "author_publisher")
@@ -206,27 +181,21 @@ class ArticleRepository:
 
         def read() -> tuple[list[ArticleDocument], int]:
             connection = self._database.connection
-            cursor = connection.articles.find(query_filter)
-            documents = list(
-                cursor.sort([("created", DESCENDING)]).limit(_MAX_SEARCH_CANDIDATES)
+            query = dict(query_filter)
+            if "$text" not in query:
+                query["$text"] = {"$search": term}
+
+            cursor = (
+                connection.articles.find(query)
+                .sort([("score", {"$meta": "textScore"})])
+                .limit(_MAX_SEARCH_CANDIDATES)
             )
-            if not documents:
+            candidates = list(cursor)
+            if not candidates:
                 return [], 0
-            ordered_ids = rank_by_relevance(
-                connection, [document_id(document) for document in documents], term
-            )
-            position = {hex_id: index for index, hex_id in enumerate(ordered_ids)}
-
-            def rank_key(document: dict[str, Any]) -> int:
-                return position[document_id(document)]
-
-            ranked = [
-                document for document in documents if document_id(document) in position
-            ]
-            ordered = sorted(ranked, key=rank_key)
             start = (page - 1) * per_page
-            window = ordered[start : start + per_page]
-            return [_normalize(document) for document in window], len(ordered)
+            window = candidates[start : start + per_page]
+            return [_normalize(document) for document in window], len(candidates)
 
         return await self._database.run(read)
 
