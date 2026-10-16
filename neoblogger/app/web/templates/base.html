@@ -9,7 +9,7 @@
   <title>{% block title %}{{ site_title }}{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230172ad'/%3E%3Ctext x='8' y='12' font-size='11' text-anchor='middle' fill='white' font-family='sans-serif'%3EN%3C/text%3E%3C/svg%3E">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <meta name="description" content="{% block description %}{{ site_description }}{% endblock %}">
+  <meta name="description" content="{% block description %}{{ site_description or site_title }}{% endblock %}">
   <meta name="author" content="{% block author %}{{ site_author }}{% endblock %}">
   <meta name="theme-color" content="#0172ad">
   {% block head %}{% endblock %}

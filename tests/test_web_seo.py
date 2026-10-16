@@ -184,6 +184,24 @@ async def test_global_head_hygiene(app: Any) -> None:
     assert '<a href="/feed.xml">Feed</a>' in rendered
 
 
+async def test_meta_description_never_empty(app: Any) -> None:
+    import re
+
+    for path in ("/", "/search?q=x", "/signup"):
+        rendered = await body_of(await app.test_client().get(path))
+        match = re.search(r'<meta name="description" content="([^"]*)">', rendered)
+        assert match is not None, path
+        assert match.group(1).strip() != "", path
+
+
+def test_mobile_nav_and_code_contrast_css() -> None:
+    from pathlib import Path
+
+    css = Path("neoblogger/app/web/static/custom.css").read_text()
+    assert ".site-header .nav-links li { white-space: nowrap; padding: 0; }" in css
+    assert "div.highlight pre { background-color: #f8f8f8;" in css
+
+
 async def test_thin_pages_opt_out_of_indexing(app: Any) -> None:
     client = app.test_client()
     for path in ("/search?q=x", "/signup", "/signin", "/recover"):

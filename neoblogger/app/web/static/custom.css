@@ -202,7 +202,7 @@ nav.breadcrumbs {
     box-shadow: var(--pico-dropdown-box-shadow);
   }
   .site-header details.nav-menu[open] ~ .nav-links { display: flex; }
-  .site-header .nav-links li { white-space: nowrap; }
+  .site-header .nav-links li { white-space: nowrap; padding: 0; }
   .site-header .nav-links li a,
   .site-header .nav-links li button {
     display: block;
@@ -311,6 +311,10 @@ main table {
 .theme-credit { color: var(--pico-muted-color); }
 /* Copy affordance overlays its own code block (spec §6). */
 div.highlight { position: relative; }
+/* Pygments' default palette is designed for a light backdrop; Pico's dark
+   theme repaints <pre> surfaces, which drops token contrast below WCAG.
+   Pin the intended backdrop in every theme (Lighthouse color-contrast). */
+div.highlight, div.highlight pre { background-color: #f8f8f8; color: #222; }
 div.highlight pre { padding-right: 4.5rem; }
 div.highlight .copy-button {
   position: absolute;
