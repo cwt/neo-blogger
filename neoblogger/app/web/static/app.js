@@ -42,6 +42,64 @@ document.querySelectorAll("[data-copy-url]").forEach((control) => {
   });
 });
 
+// Post-upload success-banner Copy button (spec §10.1): the /upload view
+// flashes "Uploaded: /images/<id>.webp" and redirects; enhance that banner
+// with a one-click copy control carrying the same data-copy-url contract.
+document.querySelectorAll(".flash-success").forEach((banner) => {
+  const match = banner.textContent.match(/\/images\/[0-9a-f]{24}\.webp/);
+  if (!match || banner.querySelector("[data-copy-url]")) return;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.copyUrl = match[0];
+  button.textContent = "Copy URL";
+  button.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(match[0]);
+    const original = button.textContent;
+    button.textContent = "Copied!";
+    window.setTimeout(() => {
+      button.textContent = original;
+    }, 1500);
+  });
+  banner.appendChild(button);
+});
+
+// Delete confirmation via the shared <dialog> (spec §4.5, §5.4, §6, §7).
+// Progressive enhancement: without JS the delete forms submit immediately.
+const confirmDialog = document.getElementById("confirm-dialog");
+const confirmMessage = document.getElementById("confirm-dialog-message");
+const confirmCancel = document.getElementById("confirm-dialog-cancel");
+const confirmOk = document.getElementById("confirm-dialog-confirm");
+let pendingDeleteForm = null;
+if (confirmDialog && typeof confirmDialog.showModal === "function") {
+  document.querySelectorAll('form[action*="/delete"]').forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      if (form.dataset.confirmed === "true") return;
+      event.preventDefault();
+      pendingDeleteForm = form;
+      if (confirmMessage) {
+        confirmMessage.textContent = "Are you sure you want to delete this?";
+      }
+      confirmDialog.showModal();
+    });
+  });
+  if (confirmCancel) {
+    confirmCancel.addEventListener("click", () => {
+      pendingDeleteForm = null;
+      confirmDialog.close();
+    });
+  }
+  if (confirmOk) {
+    confirmOk.addEventListener("click", () => {
+      const target = pendingDeleteForm;
+      pendingDeleteForm = null;
+      if (target) {
+        target.dataset.confirmed = "true";
+        target.submit();
+      }
+    });
+  }
+}
+
 // EasyMDE article editor with the editor-toolbar image button (spec §5.1).
 const bodyField = document.getElementById("body");
 if (bodyField && typeof EasyMDE !== "undefined") {
@@ -123,6 +181,21 @@ if (coverField) {
         other.setAttribute("aria-pressed", other === control ? "true" : "false");
       });
     });
+  });
+}
+
+// Lightweight comment toolbar (spec §6): bold, italic, link, code, preview.
+const commentField = document.getElementById("comment-text");
+if (commentField && typeof EasyMDE !== "undefined") {
+  const commentEditor = new EasyMDE({
+    element: commentField,
+    spellChecker: false,
+    autoDownloadFontAwesome: false,
+    autosave: { enabled: false },
+    toolbar: ["bold", "italic", "link", "code", "preview"],
+  });
+  commentEditor.codemirror.on("change", () => {
+    commentEditor.codemirror.save();
   });
 }
 

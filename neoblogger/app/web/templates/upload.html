@@ -16,6 +16,7 @@
       <code>/images/{{ image.id }}.webp</code>
       {% if admin_view %}· owner {{ image.metadata.owner }}{% endif %}
     </p>
+    <button type="button" data-copy-url="/images/{{ image.id }}.webp">Copy URL</button>
     <form method="post" action="/images/{{ image.id }}/alt" class="inline-form">
       <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
       <label for="alt-{{ image.id }}">Alt text</label>

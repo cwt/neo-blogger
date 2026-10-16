@@ -7,10 +7,14 @@
   <div class="stat-card"><strong>{{ members.active }}</strong> active</div>
   <div class="stat-card"><strong>{{ members.admins }}</strong> administrators</div>
   <div class="stat-card"><strong>{{ members.publishers }}</strong> publishers</div>
+  <div class="stat-card"><strong>{{ articles.published + articles.draft }}</strong> total articles</div>
   <div class="stat-card"><strong>{{ articles.published }}</strong> published</div>
   <div class="stat-card"><strong>{{ articles.draft }}</strong> drafts</div>
   <div class="stat-card"><strong>{{ comments_total }}</strong> comments</div>
 </section>
+<nav class="admin-nav" aria-label="Admin">
+  <a href="/admin/unpublished">Review unpublished</a>
+</nav>
 <h2>Members</h2>
 <table>
   <thead><tr><th>Member</th><th>State</th><th>Flags</th><th>Actions</th></tr></thead>
@@ -24,12 +28,12 @@
         {% if member.publisher %}<span class="badge">Publisher</span>{% endif %}
       </td>
       <td class="row-actions">
-        {% if member.active %}
+        {% if member.active and not member.administrator %}
         <form method="post" action="/admin/members/{{ member._id }}/disable" class="inline-form">
           <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
           <button type="submit" class="link-button">Disable</button>
         </form>
-        {% else %}
+        {% elif not member.active %}
         <form method="post" action="/admin/members/{{ member._id }}/enable" class="inline-form">
           <input type="hidden" name="csrftoken" value="{{ csrf_token }}">
           <button type="submit" class="link-button">Enable</button>

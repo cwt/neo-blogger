@@ -76,6 +76,16 @@
   </div>
 </footer>
 <button id="back-to-top" type="button" aria-label="Back to top" hidden>↑</button>
+<dialog id="confirm-dialog" aria-labelledby="confirm-dialog-title">
+  <form method="dialog" class="confirm-dialog-form">
+    <h2 id="confirm-dialog-title">Confirm</h2>
+    <p id="confirm-dialog-message">Are you sure?</p>
+    <menu>
+      <button type="button" id="confirm-dialog-cancel">Cancel</button>
+      <button type="submit" id="confirm-dialog-confirm" value="confirm">Confirm</button>
+    </menu>
+  </form>
+</dialog>
 <script src="/static/app.js" type="module"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@ RUN dnf -y upgrade \
     && dnf clean all
 
 WORKDIR /build
-COPY pyproject.toml README.md LICENSE uv.lock ./
+COPY pyproject.toml README.md LICENSE THIRD-PARTY-LICENSES.md uv.lock ./
 COPY neoblogger/ ./neoblogger/
 RUN python3.14 -m pip install --no-cache-dir build hatchling \
     && python3.14 -m build --wheel --no-isolation --outdir /dist
@@ -34,14 +34,23 @@ RUN dnf -y upgrade \
 
 COPY --from=build /out/lib/ /usr/local/lib/
 COPY --from=build /dist/*.whl /tmp/wheel/
-RUN python3.14 -m pip install --no-cache-dir \
-        gunicorn "uvicorn[standard]>=0.34" uvicorn-worker \
-    && python3.14 -m pip install --no-cache-dir /tmp/wheel/*.whl \
-    && rm -rf /tmp/wheel \
+# Reproducible runtime install (tech-req §15.2): resolve every dependency
+# from uv.lock pins. `uv export --frozen` emits the locked requirements
+# (including the `serve` extra: gunicorn + uvicorn); the app wheel itself is
+# installed with --no-deps so open-ended ranges in pyproject never resolve
+# from PyPI at build time. The `uvicorn.workers.UvicornWorker` entrypoint
+# ships inside the uvicorn package, so no separate `uvicorn-worker` install
+# is needed. License attribution (§17.1) ships in /app/.
+COPY uv.lock pyproject.toml README.md ./
+RUN python3.14 -m pip install --no-cache-dir uv \
+    && python3.14 -m uv export --frozen --no-dev --extra serve -o /tmp/requirements.txt \
+    && python3.14 -m pip install --no-cache-dir -r /tmp/requirements.txt \
+    && python3.14 -m pip install --no-cache-dir --no-deps /tmp/wheel/*.whl \
+    && rm -rf /tmp/wheel /tmp/requirements.txt uv.lock pyproject.toml README.md \
     && ldconfig
 
 WORKDIR /app
-COPY gunicorn.conf.py ./
+COPY gunicorn.conf.py LICENSE THIRD-PARTY-LICENSES.md ./
 
 # Database file and file-cache directory live on persistent storage (§19.2).
 ENV NEOBLOGGER_CONFIG=/data/neo-blogger.toml

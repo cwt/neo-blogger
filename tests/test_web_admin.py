@@ -27,7 +27,7 @@ async def test_dashboard_statistics(app: Any) -> None:
     root_client = await signup(app, "root")
     await signup(app, "user")
     await write_article(
-        app, root_client, title="Stat piece", publish=True, cover="c.webp"
+        app, root_client, title="Stat piece", publish=True, cover="https://x.io/c.webp"
     )
     rendered = await body_of(await root_client.get("/admin"))
     assert "<strong>2</strong> members" in rendered
