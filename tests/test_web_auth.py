@@ -1,22 +1,8 @@
 """Web-level auth tests: registration, sessions, CSRF (spec §4)."""
 
-from collections.abc import AsyncIterator
-from pathlib import Path
 from typing import Any
 
-import pytest
-
-from neoblogger import build_app
-from neoblogger.app.config import RuntimeConfig
-
-
-@pytest.fixture
-async def app(tmp_path: Path) -> AsyncIterator[Any]:
-    config = RuntimeConfig()
-    config.database.path = str(tmp_path / "web.db")
-    application = build_app(config)
-    yield application
-    await application.extensions["neoblogger_context"].database.close()
+from .conftest import csrf_token_from
 
 
 async def test_signup_creates_session(app: Any) -> None:
@@ -39,14 +25,6 @@ async def test_signup_creates_session(app: Any) -> None:
     assert "neoblogger_session=" in set_cookie
     assert "HttpOnly" in set_cookie
     assert "SameSite=Lax" in set_cookie
-
-
-def csrf_token_from(html: str) -> str:
-    import re
-
-    match = re.search(r'name="csrftoken" value="([^"]*)"', html)
-    assert match is not None
-    return match.group(1)
 
 
 async def test_signup_duplicate_email_flashes_error(app: Any) -> None:

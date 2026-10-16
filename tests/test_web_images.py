@@ -8,17 +8,6 @@ from .conftest import body_of, csrf_token_from
 from .test_web_blog import signup
 
 
-def tiny_webp_bytes() -> bytes:
-    """A real 1x1 WebP built with Pillow (content verification must pass)."""
-    import io
-
-    from PIL import Image
-
-    buffer = io.BytesIO()
-    Image.new("RGB", (2, 2), (10, 20, 30)).save(buffer, format="WEBP")
-    return buffer.getvalue()
-
-
 def tiny_png_bytes() -> bytes:
     import io
 

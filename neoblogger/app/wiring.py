@@ -18,6 +18,7 @@ from .blueprints.auth import create_auth_blueprint
 from .blueprints.blog import HexIdConverter, create_blog_blueprint, render_home_page
 from .blueprints.discovery import create_discovery_blueprint
 from .blueprints.images import create_images_blueprint
+from .blueprints.paging import parse_page_number
 from .blueprints.profile import create_profile_blueprint
 from .blueprints.seo import canonical_url_for, create_seo_blueprint, jsonld_document
 from .context import AppContext
@@ -27,7 +28,11 @@ from .security.proxy import ProxyTrust, forwarded_base, forwarded_client
 from .security.ratelimit import FixedWindowRateLimiter
 from .services.cache import ResponseCache
 from .services.objects import legacy_url, readable_date
-from .services.theme import THEME_BANNER_KEY, THEME_OWNER, banner_for_path
+from .services.theme import (
+    THEME_BANNER_KEY,
+    banner_for_path,
+    list_theme_banners,
+)
 from .text.minify import minify_html
 
 __all__ = [
@@ -93,7 +98,7 @@ async def ensure_theme_banners(context: AppContext) -> dict[str, str]:
     regeneration takes effect on the next boot (spec §10).
     """
     if context.theme_banners is None:
-        rows, _total = await context.objects.list_for(THEME_OWNER, 1, 50)
+        rows, _total = await list_theme_banners(context.objects)
         context.theme_banners = {
             str(row["metadata"].get(THEME_BANNER_KEY, "")): f"/images/{row['id']}.webp"
             for row in rows
@@ -144,11 +149,7 @@ def _cache_key(per_page: int = 10) -> str:
     "-3", ...) for identical content; coerce exactly like the feed
     renderer so one page maps to one key.
     """
-    try:
-        page = int(request.args.get("page", "1"))
-    except ValueError:
-        page = 1
-    return f"home:{max(1, page)}:{per_page}"
+    return f"home:{parse_page_number(request.args)}:{per_page}"
 
 
 def _is_home_page() -> bool:

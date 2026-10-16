@@ -8,7 +8,7 @@ the web test client, exactly like production requests.
 import re
 from typing import Any
 
-from .conftest import body_of, csrf_token_from
+from .conftest import body_of, csrf_token_from, tiny_webp_bytes
 
 
 def storage(filename: str, payload: bytes) -> Any:
@@ -17,16 +17,6 @@ def storage(filename: str, payload: bytes) -> Any:
     from werkzeug.datastructures import FileStorage
 
     return FileStorage(stream=io.BytesIO(payload), filename=filename)
-
-
-def tiny_webp_bytes() -> bytes:
-    import io
-
-    from PIL import Image
-
-    buffer = io.BytesIO()
-    Image.new("RGB", (4, 4), (200, 10, 10)).save(buffer, format="WEBP")
-    return buffer.getvalue()
 
 
 async def signup(app: Any, display_name: str) -> Any:

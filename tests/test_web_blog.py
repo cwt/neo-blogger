@@ -3,7 +3,7 @@
 import re
 from typing import Any
 
-from .conftest import body_of, csrf_token_from
+from .conftest import body_of, csrf_token_from, signup
 
 SIGNUP = {
     "email": "",
@@ -11,22 +11,6 @@ SIGNUP = {
     "question_code": "first-pet",
     "answer": "Snowball",
 }
-
-
-async def signup(app: Any, display_name: str) -> Any:
-    """Register (auto-signs-in) and return the test client."""
-    client = app.test_client()
-    page = await client.get("/signup")
-    token = csrf_token_from(await body_of(page))
-    form = {
-        **SIGNUP,
-        "display_name": display_name,
-        "email": f"{display_name}@x.io",
-        "csrftoken": token,
-    }
-    response = await client.post("/signup", form=form)
-    assert response.status_code == 302, await body_of(response)
-    return client
 
 
 async def write_article(

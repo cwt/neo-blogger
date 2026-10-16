@@ -21,6 +21,7 @@ from werkzeug.wrappers import Response as WerkzeugResponse
 
 from ..context import AppContext
 from ..services.objects import ImageRejectedError, convert_legacy
+from .paging import parse_page_number
 
 __all__ = ["create_images_blueprint"]
 
@@ -36,6 +37,17 @@ def _content_type_for(extension: str) -> str:
         "jpeg": "image/jpeg",
         "png": "image/png",
     }.get(extension, "application/octet-stream")
+
+
+def _set_image_headers(
+    response: WerkzeugResponse, etag: str, registry: dict[str, Any]
+) -> None:
+    """Shared cache headers for image responses (bugs/023)."""
+    response.headers["Cache-Control"] = f"public, max-age={_YEAR_SECONDS}, immutable"
+    response.headers["ETag"] = f'"{etag}"'
+    last_modified = _http_date(registry)
+    if last_modified:
+        response.headers["Last-Modified"] = last_modified
 
 
 def create_images_blueprint(context: AppContext) -> Blueprint:
@@ -97,12 +109,7 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
                 return redirect("/upload")
             await flash(f"Uploaded: /images/{object_id}.webp", "success")
             return redirect("/upload")
-        page = 1
-        try:
-            page = int(request.args.get("page", "1"))
-        except ValueError:
-            page = 1
-        page = max(1, page)
+        page = parse_page_number(request.args)
         owner = None if g.member["administrator"] else g.member["display_name"]
         rows, total = await context.objects.list_for(owner, page, _GALLERY_PAGE_SIZE)
         g.breadcrumbs = [("Home", "/"), ("Upload image", "/upload")]
@@ -123,13 +130,7 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
         etag = registry["md5"]
         if request.if_none_match and etag in request.if_none_match:
             response = WerkzeugResponse("", status=304)
-            response.headers["Cache-Control"] = (
-                f"public, max-age={_YEAR_SECONDS}, immutable"
-            )
-            response.headers["ETag"] = f'"{etag}"'
-            last_modified = _http_date(registry)
-            if last_modified:
-                response.headers["Last-Modified"] = last_modified
+            _set_image_headers(response, etag, registry)
             return response
 
         payload = await context.objects.data(object_id)
@@ -149,13 +150,7 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
 
         response = WerkzeugResponse(payload)
         response.headers["Content-Type"] = content_type
-        response.headers["Cache-Control"] = (
-            f"public, max-age={_YEAR_SECONDS}, immutable"
-        )
-        response.headers["ETag"] = f'"{etag}"'
-        last_modified = _http_date(registry)
-        if last_modified:
-            response.headers["Last-Modified"] = last_modified
+        _set_image_headers(response, etag, registry)
         return response
 
     @blueprint.route("/images/<hexid:object_id>/alt", methods=["POST"])

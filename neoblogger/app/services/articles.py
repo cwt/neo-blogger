@@ -1,12 +1,12 @@
 """Article, feed, and discovery workflows (spec §5, §8, §9)."""
 
-import datetime
 import logging
 
 from ..repositories.articles import ArticleRepository
 from ..repositories.documents import ArticleDocument, MemberDocument
 from ..repositories.members import MemberRepository
 from ..repositories.meta import MetaRepository
+from .timestamps import now_iso
 from .visibility import ArticleVisibility, feed_filter, tag_filter
 
 __all__ = ["ArticleService", "CoverRequiredError"]
@@ -22,6 +22,11 @@ def _parse_tags(raw: str) -> list[str]:
         if tag and tag not in tags:
             tags.append(tag)
     return tags
+
+
+def _now_iso() -> str:
+    """Legacy alias for shared UTC timestamps (bugs/023)."""
+    return now_iso()
 
 
 def _validate_cover_url(cover_url: str) -> None:
@@ -49,11 +54,6 @@ def _validate_article_fields(title: str, subtitle: str, body: str) -> None:
         raise ValueError("article title must be at most 200 characters")
     if len(subtitle.strip()) > 300:
         raise ValueError("article subtitle must be at most 300 characters")
-
-
-def _now_iso() -> str:
-    """The current local timestamp as an ISO string (spec §5.1)."""
-    return datetime.datetime.now().isoformat(timespec="seconds")
 
 
 class CoverRequiredError(Exception):

@@ -7,11 +7,19 @@ banner name, and pages render exactly as today when no theme exists
 """
 
 import re
+from typing import Any
 
-__all__ = ["THEME_BANNER_KEY", "THEME_OWNER", "banner_for_path"]
+__all__ = [
+    "THEME_BANNER_KEY",
+    "THEME_OWNER",
+    "THEME_PAGE_SIZE",
+    "banner_for_path",
+    "list_theme_banners",
+]
 
 THEME_OWNER = "theme"
 THEME_BANNER_KEY = "theme_banner"
+THEME_PAGE_SIZE = 50
 
 _PAGE_BANNERS: dict[str, str] = {
     "tag": "tag",
@@ -42,3 +50,12 @@ def banner_for_path(path: str) -> str:
     if _HEXID.fullmatch(first) is not None and "/" not in path.strip("/"):
         return "article"
     return "error"
+
+
+async def list_theme_banners(objects: object) -> Any:
+    """Single shared theme-banner query (bugs/023)."""
+    from typing import cast
+
+    repository = cast(Any, objects)
+    result = await repository.list_for(THEME_OWNER, 1, THEME_PAGE_SIZE)
+    return result
