@@ -7,7 +7,10 @@ banner name, and pages render exactly as today when no theme exists
 """
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ..repositories.objects import ObjectRepository
 
 __all__ = [
     "THEME_BANNER_KEY",
@@ -52,10 +55,6 @@ def banner_for_path(path: str) -> str:
     return "error"
 
 
-async def list_theme_banners(objects: object) -> Any:
+async def list_theme_banners(objects: ObjectRepository) -> Any:
     """Single shared theme-banner query (bugs/023)."""
-    from typing import cast
-
-    repository = cast(Any, objects)
-    result = await repository.list_for(THEME_OWNER, 1, THEME_PAGE_SIZE)
-    return result
+    return await objects.list_for(THEME_OWNER, 1, THEME_PAGE_SIZE)

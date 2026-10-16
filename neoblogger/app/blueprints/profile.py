@@ -22,27 +22,11 @@ def create_profile_blueprint(context: AppContext) -> Blueprint:
         if g.member is None:
             await flash("Sign in first.", "error")
             return redirect("/signin")
-        stats: dict[str, int] = {}
-        drafts: list[object] = []
-        recent: list[object] = []
-        async with asyncio.TaskGroup() as group:
-
-            async def _load_stats() -> None:
-                nonlocal stats
-                stats = await context.accounts.profile_statistics(g.member)
-
-            async def _load_posts() -> None:
-                nonlocal drafts, recent
-                display = g.member["display_name"]
-                fetched = await context.articles.author_profile_posts(
-                    display, _RECENT_PUBLISHED_LIMIT
-                )
-                draft_docs, published_docs = fetched
-                drafts = list(draft_docs)
-                recent = list(published_docs)
-
-            group.create_task(_load_stats())
-            group.create_task(_load_posts())
+        display = g.member["display_name"]
+        stats, (drafts, recent) = await asyncio.gather(
+            context.accounts.profile_statistics(g.member),
+            context.articles.author_profile_posts(display, _RECENT_PUBLISHED_LIMIT),
+        )
         g.breadcrumbs = [("Home", "/"), ("Profile", "/profile")]
         return await render_template("profile.html", stats=stats, posts=drafts + recent)
 

@@ -102,7 +102,7 @@ async def test_member_flag_validation(members: MemberRepository) -> None:
         "dave", "d@x.io", "h", "first-pet", "a"
     )
     with pytest.raises(ValueError):
-        await members.set_flag(member_id, "email", True)
+        await members.set_flag(member_id, "email", True)  # type: ignore[arg-type]
 
 
 async def test_member_credential_rotation(members: MemberRepository) -> None:

@@ -102,14 +102,14 @@ class ArticleService:
         if article_id is None:
             created_at = created if created is not None else _now_iso()
             saved_id = await self._articles.create(
-                title,
-                subtitle,
-                body,
-                cover_url,
-                author["display_name"],
-                created_at,
-                tags,
-                status,
+                title=title,
+                subtitle=subtitle,
+                body=body,
+                cover_url=cover_url,
+                author=author["display_name"],
+                created=created_at,
+                tags=tags,
+                status=status,
                 author_active=author["active"],
                 author_publisher=author["publisher"],
             )

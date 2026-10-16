@@ -5,7 +5,7 @@ boundary; ``_id`` is normalized to its hex string (§5.1 policies).
 """
 
 import sqlite3
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from neosqlite import DESCENDING
 
@@ -150,7 +150,12 @@ class MemberRepository:
 
         return await self._database.run(read)
 
-    async def set_flag(self, member_id: str, field: str, value: bool) -> None:
+    async def set_flag(
+        self,
+        member_id: str,
+        field: Literal["active", "administrator", "publisher"],
+        value: bool,
+    ) -> None:
         """Toggle one of ``active``/``administrator``/``publisher`` (§11.2)."""
         if field not in _MEMBER_BOOLEANS:
             raise ValueError(f"not a member flag: {field}")

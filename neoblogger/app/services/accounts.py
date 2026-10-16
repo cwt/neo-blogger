@@ -109,20 +109,10 @@ class AccountService:
             raise MemberAlreadyExistsError("email already registered")
         if await self._members.by_display_name(display_name) is not None:
             raise MemberAlreadyExistsError("display name already registered")
-        password_hash = ""
-        answer_hash = ""
-        async with asyncio.TaskGroup() as group:
-
-            async def _hash_password() -> None:
-                nonlocal password_hash
-                password_hash = await async_hash_secret(password)
-
-            async def _hash_answer() -> None:
-                nonlocal answer_hash
-                answer_hash = await async_hash_secret(normalize_answer(answer))
-
-            group.create_task(_hash_password())
-            group.create_task(_hash_answer())
+        password_hash, answer_hash = await asyncio.gather(
+            async_hash_secret(password),
+            async_hash_secret(normalize_answer(answer)),
+        )
         return await self._members.create_first_or_member(
             display_name,
             email,
@@ -186,21 +176,15 @@ class AccountService:
         existing = await self._members.by_email(new_email)
         if existing is not None and existing["_id"] != member["_id"]:
             raise MemberAlreadyExistsError("email already registered")
-        password_hash = member["password_hash"]
-        answer_hash = ""
-        async with asyncio.TaskGroup() as group:
 
-            async def _hash_new_password() -> None:
-                nonlocal password_hash
-                if new_password:
-                    password_hash = await async_hash_secret(new_password)
+        async def _maybe_password() -> str:
+            if new_password:
+                return await async_hash_secret(new_password)
+            return str(member["password_hash"])
 
-            async def _hash_new_answer() -> None:
-                nonlocal answer_hash
-                answer_hash = await async_hash_secret(normalize_answer(answer))
-
-            group.create_task(_hash_new_password())
-            group.create_task(_hash_new_answer())
+        password_hash, answer_hash = await asyncio.gather(
+            _maybe_password(), async_hash_secret(normalize_answer(answer))
+        )
         return await self._members.update_credentials(
             member["_id"],
             email=new_email,
@@ -214,22 +198,10 @@ class AccountService:
 
         Counts run in the engine; article bodies are never loaded (§14).
         """
-        counts: dict[str, int] = {}
-        comments_written = 0
-        async with asyncio.TaskGroup() as group:
-
-            async def _load_articles() -> None:
-                nonlocal counts
-                counts = await self._visibility.count_by_author(member["display_name"])
-
-            async def _load_comments() -> None:
-                nonlocal comments_written
-                comments_written = await self._comments.count_by_author(
-                    member["display_name"]
-                )
-
-            group.create_task(_load_articles())
-            group.create_task(_load_comments())
+        counts, comments_written = await asyncio.gather(
+            self._visibility.count_by_author(member["display_name"]),
+            self._comments.count_by_author(member["display_name"]),
+        )
         published = counts["published"]
         drafts = counts["draft"]
         return {

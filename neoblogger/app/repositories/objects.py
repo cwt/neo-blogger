@@ -11,14 +11,12 @@ from typing import Any
 from neosqlite.gridfs import GridFSBucket, NoFile
 from neosqlite.objectid import ObjectId
 
+from ..services.theme import THEME_OWNER
 from .db import Database
 
 __all__ = ["ObjectRepository"]
 
 CHUNK_SIZE_BYTES = 256 * 1024
-
-_THEME_OWNER = "theme"
-"""System-banner owner excluded from admin galleries (services.theme.THEME_OWNER)."""
 
 
 class ObjectRepository:
@@ -116,7 +114,7 @@ class ObjectRepository:
         owner: str | None,
         page: int,
         per_page: int,
-        exclude_owner: str | None = _THEME_OWNER,
+        exclude_owner: str | None = THEME_OWNER,
     ) -> tuple[list[dict[str, Any]], int]:
         """Gallery listing, newest first (§10.3)."""
 

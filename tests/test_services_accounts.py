@@ -264,10 +264,24 @@ async def test_profile_statistics_counts_without_loading_bodies(
     assert member is not None
     articles = services["articles"]
     await articles.create(
-        "Pub", "s", "x" * 5000, "", "root", "2026-01-01T00:00:00", [], "published"
+        title="Pub",
+        subtitle="s",
+        body="x" * 5000,
+        cover_url="",
+        author="root",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
     )
     await articles.create(
-        "Draft", "s", "y" * 5000, "", "root", "2026-01-02T00:00:00", [], "draft"
+        title="Draft",
+        subtitle="s",
+        body="y" * 5000,
+        cover_url="",
+        author="root",
+        created="2026-01-02T00:00:00",
+        tags=[],
+        status="draft",
     )
     stats = await accounts.profile_statistics(member)
     assert stats == {

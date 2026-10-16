@@ -52,14 +52,14 @@ def article(
 
 async def test_article_crud(articles: ArticleRepository) -> None:
     article_id = await articles.create(
-        "Alpha",
-        "Alpha subtitle",
-        "alpha body",
-        "",
-        "alice",
-        "2026-01-01T00:00:00",
-        ["python"],
-        "published",
+        title="Alpha",
+        subtitle="Alpha subtitle",
+        body="alpha body",
+        cover_url="",
+        author="alice",
+        created="2026-01-01T00:00:00",
+        tags=["python"],
+        status="published",
     )
     fetched = await articles.by_id(article_id)
     assert fetched is not None
@@ -86,14 +86,14 @@ async def test_article_crud(articles: ArticleRepository) -> None:
 async def test_feed_page_single_round_trip(articles: ArticleRepository) -> None:
     for index in range(15):
         await articles.create(
-            f"T{index:02d}",
-            f"sub {index}",
-            "body",
-            "",
-            "alice",
-            f"2026-01-{index + 1:02d}T00:00:00",
-            ["python"],
-            "published",
+            title=f"T{index:02d}",
+            subtitle=f"sub {index}",
+            body="body",
+            cover_url="",
+            author="alice",
+            created=f"2026-01-{index + 1:02d}T00:00:00",
+            tags=["python"],
+            status="published",
         )
     docs, total = await articles.feed_page({"status": "published"}, 1, 10)
     assert total == 15
@@ -105,17 +105,24 @@ async def test_feed_page_single_round_trip(articles: ArticleRepository) -> None:
 
 async def test_search_relevance_ranking(articles: ArticleRepository) -> None:
     await articles.create(
-        "rare", "sub", "zebra", "", "a", "2026-01-01T00:00:00", [], "published"
+        title="rare",
+        subtitle="sub",
+        body="zebra",
+        cover_url="",
+        author="a",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
     )
     await articles.create(
-        "common",
-        "sub",
-        "zebra zebra zebra",
-        "",
-        "a",
-        "2026-01-02T00:00:00",
-        [],
-        "published",
+        title="common",
+        subtitle="sub",
+        body="zebra zebra zebra",
+        cover_url="",
+        author="a",
+        created="2026-01-02T00:00:00",
+        tags=[],
+        status="published",
     )
     docs, total = await articles.search({"status": "published"}, "zebra", 1, 10)
     assert total == 2
@@ -126,10 +133,24 @@ async def test_search_respects_visibility_filter(
     articles: ArticleRepository,
 ) -> None:
     await articles.create(
-        "public", "s", "zebra public", "", "a", "2026-01-01T00:00:00", [], "published"
+        title="public",
+        subtitle="s",
+        body="zebra public",
+        cover_url="",
+        author="a",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
     )
     await articles.create(
-        "hidden", "s", "zebra hidden", "", "a", "2026-01-02T00:00:00", [], "draft"
+        title="hidden",
+        subtitle="s",
+        body="zebra hidden",
+        cover_url="",
+        author="a",
+        created="2026-01-02T00:00:00",
+        tags=[],
+        status="draft",
     )
     docs, total = await articles.search({"status": "published"}, "zebra", 1, 10)
     assert total == 1
@@ -141,14 +162,14 @@ async def test_search_paginates_with_skip_limit(
 ) -> None:
     for idx in range(5):
         await articles.create(
-            f"candidate {idx}",
-            "s",
-            "target",
-            "",
-            "a",
-            f"2026-01-0{idx + 1}T00:00:00",
-            [],
-            "published",
+            title=f"candidate {idx}",
+            subtitle="s",
+            body="target",
+            cover_url="",
+            author="a",
+            created=f"2026-01-0{idx + 1}T00:00:00",
+            tags=[],
+            status="published",
         )
     docs, total = await articles.search({"status": "published"}, "target", 1, 10)
     assert total == 5
@@ -163,14 +184,14 @@ async def test_update_preserves_snapshots_when_omitted(
     articles: ArticleRepository,
 ) -> None:
     article_id = await articles.create(
-        "Snap",
-        "s",
-        "body",
-        "",
-        "a",
-        "2026-01-01T00:00:00",
-        [],
-        "published",
+        title="Snap",
+        subtitle="s",
+        body="body",
+        cover_url="",
+        author="a",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
         author_active=True,
         author_publisher=True,
     )
@@ -193,14 +214,14 @@ async def test_update_refreshes_snapshots_when_given(
     articles: ArticleRepository,
 ) -> None:
     article_id = await articles.create(
-        "Snap",
-        "s",
-        "body",
-        "",
-        "a",
-        "2026-01-01T00:00:00",
-        [],
-        "published",
+        title="Snap",
+        subtitle="s",
+        body="body",
+        cover_url="",
+        author="a",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
         author_active=False,
         author_publisher=False,
     )
@@ -225,10 +246,24 @@ async def test_search_excludes_non_matching_documents(
     articles: ArticleRepository,
 ) -> None:
     await articles.create(
-        "match", "s", "body about cats", "", "a", "2026-01-01T00:00:00", [], "published"
+        title="match",
+        subtitle="s",
+        body="body about cats",
+        cover_url="",
+        author="a",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
     )
     await articles.create(
-        "other", "s", "body about dogs", "", "a", "2026-01-02T00:00:00", [], "published"
+        title="other",
+        subtitle="s",
+        body="body about dogs",
+        cover_url="",
+        author="a",
+        created="2026-01-02T00:00:00",
+        tags=[],
+        status="published",
     )
     docs, total = await articles.search({"status": "published"}, "cats", 1, 10)
     assert total == 1
@@ -237,14 +272,14 @@ async def test_search_excludes_non_matching_documents(
 
 async def test_substring_search_fallback(articles: ArticleRepository) -> None:
     await articles.create(
-        "Haystack",
-        "s",
-        "needle IN the stack",
-        "",
-        "a",
-        "2026-01-01T00:00:00",
-        [],
-        "published",
+        title="Haystack",
+        subtitle="s",
+        body="needle IN the stack",
+        cover_url="",
+        author="a",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
     )
     docs, total = await articles.substring_search(
         {"status": "published"}, "needle in", 1, 10
@@ -263,7 +298,14 @@ async def test_related_tags_pipeline(articles: ArticleRepository) -> None:
     ]
     for tags, created in seeds:
         await articles.create(
-            " ".join(tags), "s", "b", "", "a", created, tags, "published"
+            title=" ".join(tags),
+            subtitle="s",
+            body="b",
+            cover_url="",
+            author="a",
+            created=created,
+            tags=tags,
+            status="published",
         )
     related = await articles.related_tags("python", {"status": "published"})
     counts = dict(related)
@@ -277,10 +319,24 @@ async def test_covers_in_use_guard(articles: ArticleRepository) -> None:
     object_id = "0123456789abcdef01234567"
     variants = [f"/images/{object_id}.webp", cover]
     await articles.create(
-        "A", "s", "b", cover, "a", "2026-01-01T00:00:00", [], "published"
+        title="A",
+        subtitle="s",
+        body="b",
+        cover_url=cover,
+        author="a",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
     )
     await articles.create(
-        "B", "s", "b", "", "a", "2026-01-02T00:00:00", [], "published"
+        title="B",
+        subtitle="s",
+        body="b",
+        cover_url="",
+        author="a",
+        created="2026-01-02T00:00:00",
+        tags=[],
+        status="published",
     )
     users = await articles.covers_using_image(object_id, variants)
     assert len(users) == 1
@@ -289,9 +345,25 @@ async def test_covers_in_use_guard(articles: ArticleRepository) -> None:
 
 async def test_count_by_status(articles: ArticleRepository) -> None:
     await articles.create(
-        "P", "s", "b", "", "a", "2026-01-01T00:00:00", [], "published"
+        title="P",
+        subtitle="s",
+        body="b",
+        cover_url="",
+        author="a",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
     )
-    await articles.create("D", "s", "b", "", "a", "2026-01-02T00:00:00", [], "draft")
+    await articles.create(
+        title="D",
+        subtitle="s",
+        body="b",
+        cover_url="",
+        author="a",
+        created="2026-01-02T00:00:00",
+        tags=[],
+        status="draft",
+    )
     counts = await articles.count_by_status()
     assert counts == {"published": 1, "draft": 1}
 
@@ -300,7 +372,14 @@ async def test_comment_lifecycle_and_cascade(
     articles: ArticleRepository, comments: CommentRepository
 ) -> None:
     article_id = await articles.create(
-        "With comments", "s", "b", "", "a", "2026-01-01T00:00:00", [], "published"
+        title="With comments",
+        subtitle="s",
+        body="b",
+        cover_url="",
+        author="a",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
     )
     comment_id = await comments.create("nice", "bob", article_id, "2026-01-02T00:00:00")
     listed = await comments.for_article(article_id, {})

@@ -1,4 +1,4 @@
-"""Bugs 013/014/015 regression: projections, search pagination, TaskGroup."""
+"""Bugs 013/014/015 regression: projections, search pagination, concurrency."""
 
 from pathlib import Path
 
@@ -85,13 +85,14 @@ async def test_sitemap_entries_minimal(tmp_path: Path) -> None:
         await db.close()
 
 
-def test_taskgroup_used_in_hot_routes() -> None:
+def test_concurrent_reads_in_hot_routes() -> None:
     import pathlib
 
     for name in ["admin.py", "discovery.py", "profile.py", "accounts.py"]:
         found = False
         for path in pathlib.Path("neoblogger").rglob(name):
-            if "TaskGroup" in path.read_text():
+            text = path.read_text()
+            if "asyncio.gather" in text:
                 found = True
         assert found, name
     blog = pathlib.Path("neoblogger/app/blueprints/blog.py").read_text()

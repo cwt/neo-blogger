@@ -24,9 +24,6 @@ def _normalize(document: dict[str, Any]) -> ArticleDocument:
     return cast(ArticleDocument, normalized_document(document, _ARTICLE_BOOLEANS))
 
 
-_MAX_SEARCH_CANDIDATES = 500
-
-
 class ArticleRepository:
     """All article reads and writes go through the DB executor facade."""
 
@@ -35,6 +32,7 @@ class ArticleRepository:
 
     async def create(
         self,
+        *,
         title: str,
         subtitle: str,
         body: str,
@@ -43,7 +41,6 @@ class ArticleRepository:
         created: str,
         tags: list[str],
         status: str,
-        *,
         author_active: bool = False,
         author_publisher: bool = False,
     ) -> str:

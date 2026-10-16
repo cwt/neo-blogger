@@ -240,8 +240,3 @@ def _absolute_image_url(context: AppContext, cover_url: str) -> str:
         context.proxy_trust,
     )
     return canonical_url_for(context.config.application.base_url, fallback, local)
-
-
-def _now() -> str:
-    """Legacy alias for shared UTC timestamps (bugs/023)."""
-    return _now_iso()

@@ -24,6 +24,7 @@ from typing import Any
 
 from ..app.config import load_config
 from ..app.context import AppContext
+from ..app.repositories.db import backfill_sole_admin_publisher
 from ..app.repositories.documents import MemberDocument
 from ..app.repositories.members import MemberAlreadyExistsError
 from ..app.security.hashing import async_hash_secret, normalize_answer
@@ -35,6 +36,20 @@ from ..app.services.accounts import (
 
 __all__ = ["build_parser", "main", "resolve_member"]
 
+HEX_ID_LENGTH = 24
+"""Length of a hex-string document id accepted as a member identifier."""
+
+
+def _is_hex_id(identifier: str) -> bool:
+    """Whether ``identifier`` looks like a 24-character hex document id."""
+    if len(identifier) != HEX_ID_LENGTH:
+        return False
+    try:
+        int(identifier, 16)
+    except ValueError:
+        return False
+    return True
+
 
 async def resolve_member(context: AppContext, identifier: str) -> MemberDocument | None:
     """Find a member by hex ID, display name, or email address.
@@ -42,14 +57,10 @@ async def resolve_member(context: AppContext, identifier: str) -> MemberDocument
     Emails are stored lowercased, so email-shaped identifiers match
     regardless of case; display names stay case-sensitive.
     """
-    if len(identifier) == 24:
-        try:
-            int(identifier, 16)
-            by_id = await context.members.by_id(identifier)
-            if by_id is not None:
-                return by_id
-        except ValueError:
-            pass
+    if _is_hex_id(identifier):
+        by_id = await context.members.by_id(identifier)
+        if by_id is not None:
+            return by_id
     by_name = await context.members.by_display_name(identifier)
     if by_name is not None:
         return by_name
@@ -207,20 +218,10 @@ async def _run_create(args: argparse.Namespace) -> int:
             print("Security answer cannot be empty.", file=sys.stderr)
             return 1
 
-        password_hash = ""
-        answer_hash = ""
-        async with asyncio.TaskGroup() as group:
-
-            async def _cli_hash_password() -> None:
-                nonlocal password_hash
-                password_hash = await async_hash_secret(password)
-
-            async def _cli_hash_answer() -> None:
-                nonlocal answer_hash
-                answer_hash = await async_hash_secret(normalize_answer(answer))
-
-            group.create_task(_cli_hash_password())
-            group.create_task(_cli_hash_answer())
+        password_hash, answer_hash = await asyncio.gather(
+            async_hash_secret(password),
+            async_hash_secret(normalize_answer(answer)),
+        )
         try:
             member_id, promoted = await context.members.create_first_or_member(
                 display_name=display_name,
@@ -353,8 +354,6 @@ async def _run_set_role(args: argparse.Namespace) -> int:
             await context.members.set_publisher(member["_id"], args.publisher)
 
         def ensure_sole_admin_publisher() -> None:
-            from ..app.repositories.db import backfill_sole_admin_publisher
-
             backfill_sole_admin_publisher(context.database.connection)
 
         await context.database.run(ensure_sole_admin_publisher)
@@ -362,13 +361,13 @@ async def _run_set_role(args: argparse.Namespace) -> int:
         if updated is not None:
             await context.visibility.resync_author_articles(updated)
         members = await context.members.all()
-        sole_admins = [row for row in members if row["administrator"]]
+        admins = [row for row in members if row["administrator"]]
         if (
             args.admin is False
-            and len(sole_admins) == 1
-            and sole_admins[0]["_id"] != member["_id"]
+            and len(admins) == 1
+            and admins[0]["_id"] != member["_id"]
         ):
-            await context.visibility.resync_author_articles(sole_admins[0])
+            await context.visibility.resync_author_articles(admins[0])
         await context.meta.bump_content_version()
         if updated is not None:
             print(

@@ -10,7 +10,11 @@ import re
 __all__ = ["validate_query"]
 
 _SHELL_CHARS = "{};|`$()&"
+#: Queries at or below this length skip the special-character ratio check;
+#: short navigational queries (e.g. tag fragments) must not trip it.
 _LENGTH_THRESHOLD = 24
+#: Queries longer than the threshold are rejected when more than this
+#: fraction of characters are non-alphanumeric (likely code/shell).
 _SPECIAL_LIMIT = 0.5
 _WEB_ADDRESS_RE = re.compile(r"://|\bwww\.|\.com(?=[/?#\s]|$)", re.IGNORECASE)
 

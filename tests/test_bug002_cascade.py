@@ -67,7 +67,14 @@ async def test_delete_draft_cascades_comments(
     articles = cast(ArticleRepository, wired["articles"])
     comments = cast(CommentRepository, wired["comments"])
     article_id = await articles.create(
-        "T", "s", "b", "", "alice", "2026-01-01T00:00:00", [], "published"
+        title="T",
+        subtitle="s",
+        body="b",
+        cover_url="",
+        author="alice",
+        created="2026-01-01T00:00:00",
+        tags=[],
+        status="published",
     )
     article = await articles.by_id(article_id)
     assert article is not None

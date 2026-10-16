@@ -41,14 +41,14 @@ async def test_admin_repair_honors_config_path(tmp_path: Path) -> None:
         await context.members.set_administrator(first, False)
         # user creates an article before repair (not publisher yet)
         article_id = await context.articles.create(
-            "User Story",
-            "sub",
-            "body",
-            "",
-            "user",
-            "2026-10-12T00:00:00",
-            ["test"],
-            "published",
+            title="User Story",
+            subtitle="sub",
+            body="body",
+            cover_url="",
+            author="user",
+            created="2026-10-12T00:00:00",
+            tags=["test"],
+            status="published",
             author_active=True,
             author_publisher=False,
         )
@@ -80,14 +80,14 @@ async def test_reindex_honors_config_path(tmp_path: Path) -> None:
     try:
         await context.database.start()
         await context.articles.create(
-            "Indexed",
-            "sub",
-            "searchable body",
-            "",
-            "alice",
-            "2026-01-01T00:00:00",
-            [],
-            "published",
+            title="Indexed",
+            subtitle="sub",
+            body="searchable body",
+            cover_url="",
+            author="alice",
+            created="2026-01-01T00:00:00",
+            tags=[],
+            status="published",
         )
     finally:
         await context.close()
@@ -131,14 +131,14 @@ tokenizer_library = "/usr/local/lib/libfts5_icu_ascii.so"
     try:
         await context.database.start()
         await context.articles.create(
-            "Tokenizer Article",
-            "subtitle",
-            "body text to index",
-            "",
-            "alice",
-            "2026-01-01T00:00:00",
-            [],
-            "published",
+            title="Tokenizer Article",
+            subtitle="subtitle",
+            body="body text to index",
+            cover_url="",
+            author="alice",
+            created="2026-01-01T00:00:00",
+            tags=[],
+            status="published",
         )
     finally:
         await context.close()

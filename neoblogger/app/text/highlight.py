@@ -24,7 +24,8 @@ _EMPTY_BLOCK = re.compile(r"<pre><code>\s*</code></pre>\n?")
 _formatter = HtmlFormatter()
 
 
-def _replace(match: re.Match[str]) -> str:
+def _highlight_block(match: re.Match[str]) -> str:
+    """Render one fenced code block with Pygments, or leave it unchanged."""
     language = match.group(1)
     source = html.unescape(match.group("body"))
     try:
@@ -43,4 +44,4 @@ def highlight_code_blocks(fragment: str) -> str:
     as ``<pre><code></code></pre>``) are dropped: they carry no content
     and otherwise render as a confusing empty gray rectangle.
     """
-    return _EMPTY_BLOCK.sub("", _CODE_BLOCK.sub(_replace, fragment))
+    return _EMPTY_BLOCK.sub("", _CODE_BLOCK.sub(_highlight_block, fragment))

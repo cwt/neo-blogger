@@ -177,14 +177,14 @@ async def test_list_role_author_without_per_member_counts(
     context = AppContext.build(load_config(cfg))
     await context.database.start()
     await context.articles.create(
-        "Alice Story",
-        "",
-        "Once upon a time",
-        "",
-        "alice",
-        "2026-10-12T00:00:00",
-        [],
-        "published",
+        title="Alice Story",
+        subtitle="",
+        body="Once upon a time",
+        cover_url="",
+        author="alice",
+        created="2026-10-12T00:00:00",
+        tags=[],
+        status="published",
         author_active=True,
         author_publisher=True,
     )
