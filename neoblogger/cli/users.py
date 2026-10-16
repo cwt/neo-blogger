@@ -62,6 +62,13 @@ async def _run_list(args: argparse.Namespace) -> int:
     try:
         await context.database.start()
         members = await context.members.all()
+        authors: set[str] = set()
+        if args.role == "author":
+
+            def fetch_authors() -> set[str]:
+                return set(context.database.connection.articles.distinct("author"))
+
+            authors = await context.database.run(fetch_authors)
         filtered: list[MemberDocument] = []
         for member in members:
             if args.status == "active" and not member["active"]:
@@ -72,10 +79,8 @@ async def _run_list(args: argparse.Namespace) -> int:
                 continue
             if args.role == "publisher" and not member["publisher"]:
                 continue
-            if args.role == "author":
-                counts = await context.articles.count_by_author(member["display_name"])
-                if (counts["published"] + counts["draft"]) < 1:
-                    continue
+            if args.role == "author" and member["display_name"] not in authors:
+                continue
             filtered.append(member)
 
         if args.json:
@@ -333,10 +338,37 @@ async def _run_set_role(args: argparse.Namespace) -> int:
                     return 1
             await context.members.set_administrator(member["_id"], args.admin)
         if args.publisher is not None:
+            promoting = bool(args.admin) and not member["administrator"]
+            will_be_admin = (
+                bool(args.admin) if args.admin is not None else member["administrator"]
+            )
+            if args.publisher is False and will_be_admin and not promoting:
+                stats = await context.members.dashboard()
+                if stats["admins"] <= 1:
+                    print(
+                        "The sole administrator must remain a publisher.",
+                        file=sys.stderr,
+                    )
+                    return 1
             await context.members.set_publisher(member["_id"], args.publisher)
+
+        def ensure_sole_admin_publisher() -> None:
+            from ..app.repositories.db import backfill_sole_admin_publisher
+
+            backfill_sole_admin_publisher(context.database.connection)
+
+        await context.database.run(ensure_sole_admin_publisher)
         updated = await context.members.by_id(member["_id"])
         if updated is not None:
             await context.visibility.resync_author_articles(updated)
+        members = await context.members.all()
+        sole_admins = [row for row in members if row["administrator"]]
+        if (
+            args.admin is False
+            and len(sole_admins) == 1
+            and sole_admins[0]["_id"] != member["_id"]
+        ):
+            await context.visibility.resync_author_articles(sole_admins[0])
         await context.meta.bump_content_version()
         if updated is not None:
             print(

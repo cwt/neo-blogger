@@ -54,17 +54,17 @@ Deep source-level audit findings for Neo-Blogger (Python 3.14 / Quart / NeoSQLit
 | [5](005.md) | Broken `og:image` and JSON-LD image URL generation on article pages | Bug / SEO | HIGH | Open |
 | [6](006.md) | File-backed `ResponseCache` runs blocking disk I/O on the event loop and skips startup cache clear | Bug / Caching | MEDIUM | Open |
 | [7](007.md) | Deploy-time theme banners leak into the Admin Upload Gallery & Cover Picker and break `context.theme_banners` if deleted | Bug / Theme & Gallery | MEDIUM | Open |
-| [8](008.md) | Password recovery double-counts rate limit attempts and misreports empty answer / password errors | Bug / Auth | MEDIUM | Open |
-| [9](009.md) | `neoblogger-users set-role` can revoke `publisher` from the sole administrator | Bug / CLI Invariant | MEDIUM | Open |
+| [8](008.md) | Password recovery double-counts rate limit attempts and misreports empty answer / password errors | Bug / Auth | MEDIUM | Fixed |
+| [9](009.md) | `neoblogger-users set-role` can revoke `publisher` from the sole administrator | Bug / CLI Invariant | MEDIUM | Fixed |
 | [10](010.md) | Missing UI and SEO elements required by specification (`<dialog>` modals, Copy-URL, comment toolbar, review link, total articles card, `keywords`/`article:tag`) | Bug / Spec Compliance | MEDIUM | Open |
 | [11](011.md) | `Containerfile` ignores `uv.lock` in runtime stage and omits `LICENSE` / `THIRD-PARTY-LICENSES.md` | Bug / Deployment & License | MEDIUM | Open |
-| [12](012.md) | Weak scalar validation in `config.py` accepts booleans as ints, non-positive limits, and unknown cache storage modes | Bug / Configuration | MEDIUM | Open |
+| [12](012.md) | Weak scalar validation in `config.py` accepts booleans as ints, non-positive limits, and unknown cache storage modes | Bug / Configuration | MEDIUM | Fixed |
 | [13](013.md) | Listing queries, `/profile`, and `/sitemap.xml` fetch full article `body` content unnecessarily | Unoptimized Algorithm | MEDIUM | Open |
 | [14](014.md) | Full-text search materializes up to 500 full documents in memory per query | Unoptimized Algorithm | MEDIUM | Open |
 | [15](015.md) | Sequential DB executor round-trips on `/admin`, `/<article_id>`, `/tag/<name>`, and `/profile` | Unoptimized Algorithm | MEDIUM | Open |
 | [16](016.md) | Missing database indexes on hot filter fields (`author_active`, `author_publisher`, `metadata.owner`) | Unoptimized Algorithm | MEDIUM | Open |
 | [17](017.md) | `GridFSBucket` re-instantiated on every object store operation | Unoptimized Algorithm | LOW | Open |
-| [18](018.md) | N+1 query in `neoblogger-users list --role author` | Unoptimized Algorithm | LOW | Open |
+| [18](018.md) | N+1 query in `neoblogger-users list --role author` | Unoptimized Algorithm | LOW | Fixed |
 | [19](019.md) | $O(N)$ per-member `update_many` loop at startup in `backfill_author_snapshots` | Unoptimized Algorithm | LOW | Open |
 | [20](020.md) | $O(N)$ linear scans on every `ResponseCache` memory access and eviction | Unoptimized Algorithm | LOW | Open |
 | [21](021.md) | Dead repository methods in `ArticleRepository` and `MemberRepository` | Dead Code | LOW | Open |

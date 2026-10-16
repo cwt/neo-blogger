@@ -113,8 +113,10 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
         if request.method == "POST":
             form = await request.form
             email = form.get("email", "").strip()
+            verify = "answer" in form
+            step = "verify" if verify else "lookup"
             if not recovery_limiter_allow(
-                request_client(context.proxy_trust), email.lower()
+                request_client(context.proxy_trust), f"{email.lower()}#{step}"
             ):
                 await flash("Too many attempts. Try again later.", "error")
                 return redirect("/recover")
@@ -129,7 +131,13 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
                 )
                 return redirect("/recover")
             question = QUESTION_LABELS.get(member["security_question_code"])
-            if form.get("answer"):
+            if verify:
+                if not form.get("answer", "").strip():
+                    await flash("Answer is required", "error")
+                    return redirect("/recover")
+                if len(form.get("new_password", "")) < 8:
+                    await flash("New password is required", "error")
+                    return redirect("/recover")
                 try:
                     ok = await context.accounts.recover(
                         email, form.get("answer", ""), form.get("new_password", "")

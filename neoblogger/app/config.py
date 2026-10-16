@@ -9,7 +9,7 @@ policies, documented on :class:`ConfigurationError`.
 import os
 import tomllib
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
@@ -62,7 +62,7 @@ class _ScalarSection(BaseModel):
     the field keeps its documented default instead of crashing boot (§18).
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     @classmethod
     def coerce(cls, raw: dict[str, Any], section_name: str) -> Self:
@@ -78,10 +78,10 @@ class _ScalarSection(BaseModel):
             pass
         resolved: dict[str, Any] = cls().model_dump()
         for key, value in raw.items():
-            annotation = cls.model_fields[key].annotation
-            adapter: TypeAdapter[Any] = TypeAdapter(annotation)
+            field = cls.model_fields[key]
+            adapter: TypeAdapter[Any] = TypeAdapter(field.rebuild_annotation())
             try:
-                adapter.validate_python(value)
+                adapter.validate_python(value, strict=True)
             except ValidationError:
                 continue
             resolved[key] = value
@@ -92,23 +92,23 @@ class CacheConfig(_ScalarSection):
     """Response-cache settings (``[caching]``)."""
 
     enabled: bool = False
-    timeout_seconds: int = 300
-    storage: str = "memory"
+    timeout_seconds: int = Field(default=300, ge=1)
+    storage: Literal["memory", "file"] = "memory"
     directory: str = "cache"
-    max_size_mb: int = 100
+    max_size_mb: int = Field(default=100, ge=1)
 
 
 class PostsConfig(_ScalarSection):
     """Feed pagination settings (``[posts]``)."""
 
-    per_page: int = 10
-    max_per_page: int = 50
+    per_page: int = Field(default=10, ge=1)
+    max_per_page: int = Field(default=50, ge=1)
 
 
 class UploadConfig(_ScalarSection):
     """Upload settings (``[uploads]``)."""
 
-    max_body_bytes: int = 16_777_216
+    max_body_bytes: int = Field(default=16_777_216, ge=1)
 
 
 class ProxyConfig(_ScalarSection):
@@ -130,7 +130,7 @@ class ApplicationConfig(_ScalarSection):
 
     secret_key: str = ""
     bind: str = "0.0.0.0"
-    port: int = 8000
+    port: int = Field(default=8000, ge=1, le=65535)
     site_title: str = "Neo-Blogger"
     site_author: str = ""
     site_description: str = ""
