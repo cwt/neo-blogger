@@ -1,5 +1,6 @@
 """Tests for headers, rate limiting, and proxy trust (tech-req §4, §12)."""
 
+from collections.abc import Callable
 from typing import Any
 
 from neoblogger.app.security.headers import security_headers
@@ -12,14 +13,15 @@ from neoblogger.app.security.proxy import (
 from neoblogger.app.security.ratelimit import FixedWindowRateLimiter
 
 
-def fake_clock(values: list[float]):
+def fake_clock(values: list[float]) -> Callable[[], float]:
     """A deterministic clock factory stepping through pre-set readings."""
     readings = iter(values)
 
     def read() -> float:
         return next(readings)
 
-    return read
+    clock: Callable[[], float] = read
+    return clock
 
 
 def test_headers_in_production() -> None:

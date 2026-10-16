@@ -4,8 +4,8 @@ from typing import Any
 
 from neoblogger.app.blueprints.seo import canonical_url_for
 
-from .conftest import body_of, csrf_token_from
-from .test_web_blog import signup, write_article
+from .conftest import body_of, csrf_token_from, signup
+from .test_web_blog import write_article
 
 
 def test_canonical_url_for_normalizes_base() -> None:

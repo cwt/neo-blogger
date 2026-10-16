@@ -1,7 +1,7 @@
 """Web-level blog tests: visibility, drafts, comments (spec §5, §6, §13)."""
 
 import re
-from typing import Any
+from typing import Any, cast
 
 from .conftest import body_of, csrf_token_from, signup
 
@@ -45,9 +45,9 @@ async def write_article(
     def find_id() -> str:
         document = context.database.connection.articles.find_one({"title": title})
         assert document is not None
-        return str(document["_id"])
+        return str(cast(dict[str, Any], document)["_id"])
 
-    return await context.database.run(find_id)
+    return cast(str, await context.database.run(find_id))
 
 
 async def comment_id_from(app: Any, client: Any, article_id: str) -> str:

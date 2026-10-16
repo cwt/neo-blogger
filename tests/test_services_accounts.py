@@ -56,17 +56,24 @@ def test_public_feed_filter_shape() -> None:
 
 
 def test_admin_feed_filter_broader() -> None:
-    admin: dict[str, Any] = {
-        "_id": "a",
-        "display_name": "root",
-        "email": "r@x.io",
-        "password_hash": "h",
-        "security_question_code": "first-pet",
-        "security_answer_hash": "h",
-        "active": True,
-        "administrator": True,
-        "publisher": True,
-    }
+    from typing import cast
+
+    from neoblogger.app.repositories.documents import MemberDocument
+
+    admin = cast(
+        MemberDocument,
+        {
+            "_id": "a",
+            "display_name": "root",
+            "email": "r@x.io",
+            "password_hash": "h",
+            "security_question_code": "first-pet",
+            "security_answer_hash": "h",
+            "active": True,
+            "administrator": True,
+            "publisher": True,
+        },
+    )
     assert feed_filter(admin) == {"status": "published"}
 
 
@@ -81,17 +88,24 @@ def test_security_question_labels_match_codes() -> None:
 
 
 def test_tag_filter_scopes() -> None:
-    admin: dict[str, Any] = {
-        "_id": "a",
-        "display_name": "root",
-        "email": "r@x.io",
-        "password_hash": "h",
-        "security_question_code": "first-pet",
-        "security_answer_hash": "h",
-        "active": True,
-        "administrator": True,
-        "publisher": True,
-    }
+    from typing import cast
+
+    from neoblogger.app.repositories.documents import MemberDocument
+
+    admin = cast(
+        MemberDocument,
+        {
+            "_id": "a",
+            "display_name": "root",
+            "email": "r@x.io",
+            "password_hash": "h",
+            "security_question_code": "first-pet",
+            "security_answer_hash": "h",
+            "active": True,
+            "administrator": True,
+            "publisher": True,
+        },
+    )
     admin_tagged = tag_filter(admin, "python")
     assert "status" not in admin_tagged["$and"][0]
     assert admin_tagged["$and"][1] == {"tags": "python"}

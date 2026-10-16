@@ -94,6 +94,8 @@ def _make_cli_config(tmp_path: Path) -> str:
 async def _create_member(
     parser: Any, cfg: str, name: str, email: str, *flags: str
 ) -> int:
+    from typing import cast
+
     args = parser.parse_args(
         [
             "-c",
@@ -108,7 +110,7 @@ async def _create_member(
             *flags,
         ]
     )
-    return await args.func(args)
+    return cast(int, await args.func(args))
 
 
 async def test_set_role_rejects_no_publisher_on_sole_admin(

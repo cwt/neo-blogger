@@ -4,8 +4,7 @@ from typing import Any
 
 import pytest
 
-from .conftest import body_of, csrf_token_from
-from .test_web_blog import signup
+from .conftest import body_of, csrf_token_from, signup
 
 
 def tiny_png_bytes() -> bytes:

@@ -4,8 +4,8 @@ from typing import Any
 
 from neoblogger.app.services.theme import banner_for_path
 
-from .conftest import body_of
-from .test_web_blog import signup, write_article
+from .conftest import body_of, signup
+from .test_web_blog import write_article
 
 
 def test_banner_for_path_mapping() -> None:

@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from .conftest import body_of, csrf_token_from
-from .test_web_blog import signup, write_article
+from .conftest import body_of, csrf_token_from, signup
+from .test_web_blog import write_article
 
 
 async def toggle(app: Any, client: Any, member_id: str, action: str) -> Any:

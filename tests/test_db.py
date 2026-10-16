@@ -128,9 +128,13 @@ async def test_backfill_articles_repairs_missing_fields(database: Database) -> N
 
     await database.run(seed)
 
-    def backfill_and_read() -> dict[str, object]:
+    def backfill_and_read() -> dict[str, Any]:
+        from typing import cast
+
         backfill_articles(database.connection)
-        return database.connection.articles.find_one({"title": "Old post"})
+        document = database.connection.articles.find_one({"title": "Old post"})
+        assert isinstance(document, dict)
+        return cast(dict[str, Any], document)
 
     repaired = await database.run(backfill_and_read)
     assert repaired["tags"] == []
@@ -145,9 +149,13 @@ async def test_backfill_first_admin_promotes_lone_member(
 
     await database.run(seed)
 
-    def backfill_and_read() -> dict[str, object]:
+    def backfill_and_read() -> dict[str, Any]:
+        from typing import cast
+
         run_backfills(database.connection)
-        return database.connection.members.find_one({"display_name": "alice"})
+        document = database.connection.members.find_one({"display_name": "alice"})
+        assert isinstance(document, dict)
+        return cast(dict[str, Any], document)
 
     promoted = await database.run(backfill_and_read)
     assert bool(promoted["administrator"]) is True
@@ -186,9 +194,13 @@ async def test_backfill_sole_admin_publisher_restores_publisher(
 
     await database.run(seed)
 
-    def backfill_and_read() -> dict[str, object]:
+    def backfill_and_read() -> dict[str, Any]:
+        from typing import cast
+
         run_backfills(database.connection)
-        return database.connection.members.find_one({"display_name": "alice"})
+        document = database.connection.members.find_one({"display_name": "alice"})
+        assert isinstance(document, dict)
+        return cast(dict[str, Any], document)
 
     repaired = await database.run(backfill_and_read)
     assert bool(repaired["administrator"]) is True

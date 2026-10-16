@@ -34,7 +34,11 @@ def csrf_token_from(html: str) -> str:
 
 
 async def body_of(response: Any) -> str:
-    return (await response.get_data()).decode("utf-8")
+    from typing import cast
+
+    data = await response.get_data()
+    raw = cast(bytes, data)
+    return raw.decode("utf-8")
 
 
 async def build_app_with(tmp_path: Any) -> Any:

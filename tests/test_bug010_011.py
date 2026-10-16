@@ -3,8 +3,8 @@
 from pathlib import Path
 from typing import Any
 
-from .conftest import body_of
-from .test_web_blog import signup, write_article
+from .conftest import body_of, signup
+from .test_web_blog import write_article
 
 REPO = Path(__file__).resolve().parent.parent
 
