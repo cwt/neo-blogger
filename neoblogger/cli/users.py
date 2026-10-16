@@ -26,7 +26,7 @@ from ..app.config import load_config
 from ..app.context import AppContext
 from ..app.repositories.documents import MemberDocument
 from ..app.repositories.members import MemberAlreadyExistsError
-from ..app.security.hashing import hash_secret, normalize_answer
+from ..app.security.hashing import async_hash_secret, normalize_answer
 from ..app.services.accounts import SECURITY_QUESTIONS
 
 __all__ = ["build_parser", "main", "resolve_member"]
@@ -200,8 +200,20 @@ async def _run_create(args: argparse.Namespace) -> int:
             print("Security answer cannot be empty.", file=sys.stderr)
             return 1
 
-        password_hash = hash_secret(password)
-        answer_hash = hash_secret(normalize_answer(answer))
+        password_hash = ""
+        answer_hash = ""
+        async with asyncio.TaskGroup() as group:
+
+            async def _cli_hash_password() -> None:
+                nonlocal password_hash
+                password_hash = await async_hash_secret(password)
+
+            async def _cli_hash_answer() -> None:
+                nonlocal answer_hash
+                answer_hash = await async_hash_secret(normalize_answer(answer))
+
+            group.create_task(_cli_hash_password())
+            group.create_task(_cli_hash_answer())
         try:
             member_id, promoted = await context.members.create_first_or_member(
                 display_name=display_name,
@@ -348,7 +360,7 @@ async def _run_set_password(args: argparse.Namespace) -> int:
         if not password:
             print("Password cannot be empty.", file=sys.stderr)
             return 1
-        password_hash = hash_secret(password)
+        password_hash = await async_hash_secret(password)
         await context.members.update_credentials(
             member["_id"],
             email=member["email"],

@@ -6,10 +6,16 @@ member becomes administrator and publisher (spec §2); display names are
 immutable (Appendix B D1).
 """
 
+import asyncio
+
 from ..repositories.comments import CommentRepository
 from ..repositories.documents import MemberDocument
 from ..repositories.members import MemberAlreadyExistsError, MemberRepository
-from ..security.hashing import hash_secret, normalize_answer, verify_secret
+from ..security.hashing import (
+    async_hash_secret,
+    async_verify_secret,
+    normalize_answer,
+)
 from .visibility import ArticleVisibility
 
 __all__ = [
@@ -82,8 +88,20 @@ class AccountService:
             raise MemberAlreadyExistsError("email already registered")
         if await self._members.by_display_name(display_name) is not None:
             raise MemberAlreadyExistsError("display name already registered")
-        password_hash = hash_secret(password)
-        answer_hash = hash_secret(normalize_answer(answer))
+        password_hash = ""
+        answer_hash = ""
+        async with asyncio.TaskGroup() as group:
+
+            async def _hash_password() -> None:
+                nonlocal password_hash
+                password_hash = await async_hash_secret(password)
+
+            async def _hash_answer() -> None:
+                nonlocal answer_hash
+                answer_hash = await async_hash_secret(normalize_answer(answer))
+
+            group.create_task(_hash_password())
+            group.create_task(_hash_answer())
         return await self._members.create_first_or_member(
             display_name,
             email,
@@ -101,7 +119,7 @@ class AccountService:
         member = await self._members.by_email(email.strip().lower())
         if member is None:
             return None
-        if not verify_secret(member["password_hash"], password):
+        if not await async_verify_secret(member["password_hash"], password):
             return None
         if not member["active"]:
             raise AccountDisabledError("account is disabled")
@@ -117,9 +135,9 @@ class AccountService:
         if not new_password:
             return False
         normalized = normalize_answer(answer)
-        if not verify_secret(member["security_answer_hash"], normalized):
+        if not await async_verify_secret(member["security_answer_hash"], normalized):
             return False
-        password_hash = hash_secret(new_password)
+        password_hash = await async_hash_secret(new_password)
         await self._members.update_credentials(
             member["_id"],
             email=member["email"],
@@ -149,10 +167,21 @@ class AccountService:
         existing = await self._members.by_email(new_email)
         if existing is not None and existing["_id"] != member["_id"]:
             raise MemberAlreadyExistsError("email already registered")
-        password_hash = (
-            hash_secret(new_password) if new_password else member["password_hash"]
-        )
-        answer_hash = hash_secret(normalize_answer(answer))
+        password_hash = member["password_hash"]
+        answer_hash = ""
+        async with asyncio.TaskGroup() as group:
+
+            async def _hash_new_password() -> None:
+                nonlocal password_hash
+                if new_password:
+                    password_hash = await async_hash_secret(new_password)
+
+            async def _hash_new_answer() -> None:
+                nonlocal answer_hash
+                answer_hash = await async_hash_secret(normalize_answer(answer))
+
+            group.create_task(_hash_new_password())
+            group.create_task(_hash_new_answer())
         return await self._members.update_credentials(
             member["_id"],
             email=new_email,
