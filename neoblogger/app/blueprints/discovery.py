@@ -5,7 +5,7 @@ Rejections flash "please use only text" and redirect home (§9).
 """
 
 import asyncio
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus
 
 from quart import Blueprint, flash, g, redirect, render_template, request
 from werkzeug.wrappers import Response as WerkzeugResponse
@@ -38,6 +38,29 @@ def create_discovery_blueprint(context: AppContext) -> Blueprint:
             base_url_path=f"/tag/{name}",
             query_suffix="",
             related_tags=related,
+        )
+
+    @blueprint.route("/author/<path:display_name>")
+    async def author_page(display_name: str) -> str | WerkzeugResponse:
+        member = await context.members.by_display_name(display_name)
+        if member is None:
+            await flash("That member does not exist.", "error")
+            return redirect("/")
+        page, per_page = page_parameters(context)
+        name = member["display_name"]
+        articles, total = await context.article_service.author_page(
+            g.member, name, page, per_page
+        )
+        g.breadcrumbs = [("Home", "/"), (name, f"/author/{name}")]
+        return await render_template(
+            "author.html",
+            display_name=name,
+            articles=articles,
+            page=page,
+            per_page=per_page,
+            has_more=total > page * per_page,
+            base_url_path=f"/author/{quote(name, safe='')}",
+            query_suffix="",
         )
 
     @blueprint.route("/search")

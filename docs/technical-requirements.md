@@ -107,7 +107,7 @@ Blueprints are **thin controllers**: no business rules, no storage access. Rule:
 ## 4. Web layer details
 
 - Framework: Quart; Jinja2 templates with autoescape on; strict-undefined mode in development.
-- URL scheme (public surface): home `/`, article `/{slug-or-id}` (id-based; confirm with data model §5.1), tag `/tag/{name}`, search `/search?q=...&page=N`, auth pages, profile `/profile`, write `/write`, upload `/upload`, admin `/admin`, review `/admin/unpublished`, images `/images/{id}.{ext}`, sitemap `/sitemap.xml`, robots `/robots.txt`, Atom feed `/feed.xml`, LLM map `/llms.txt`, health `/healthz`.
+- URL scheme (public surface): home `/`, article `/{slug-or-id}` (id-based; confirm with data model §5.1), tag `/tag/{name}`, author `/author/{display-name}` (published articles only; drafts stay on `/profile`), search `/search?q=...&page=N`, auth pages, profile `/profile`, write `/write`, upload `/upload`, admin `/admin`, review `/admin/unpublished`, images `/images/{id}.{ext}`, sitemap `/sitemap.xml`, robots `/robots.txt`, Atom feed `/feed.xml`, LLM map `/llms.txt`, health `/healthz`.
 - All state-changing routes require an authenticated, active member and CSRF token (spec §13).
 - Rate limiting: fixed-window counter keyed by (client IP, normalized email) on the sign-in and password-recovery endpoints (spec Appendix B D5); counters live in-process, never fatal on failure.
 - Proxy trust: parse `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host` **only** from the adjacent hop; trusted-hop allowlist configurable, default loopback (spec §15.8). Canonical URLs and rate-limit keys use the reconstructed client address/scheme.

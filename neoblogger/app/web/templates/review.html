@@ -9,7 +9,7 @@
     {% for article in rows %}
     <tr>
       <td><a href="/{{ article._id }}">{{ article.title }}</a></td>
-      <td>{{ article.author }}</td>
+      <td><a href="/author/{{ article.author | urlencode }}">{{ article.author }}</a></td>
       <td>{% if article.status == 'draft' %}<span class="badge">Draft</span>{% else %}Published{% endif %}</td>
       <td>{{ article.created | readable_date }}</td>
     </tr>

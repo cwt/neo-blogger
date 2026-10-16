@@ -45,6 +45,11 @@ def tag_filter(viewer: MemberDocument | None, tag: str) -> dict[str, Any]:
     return {"$and": [base, {"tags": tag}]}
 
 
+def author_filter(viewer: MemberDocument | None, author: str) -> dict[str, Any]:
+    """Author-page filter: published articles only, drafts stay private (§13)."""
+    return {**feed_filter(viewer), "author": author}
+
+
 class ArticleVisibility:
     """Per-article view authorization and snapshot coherence (spec §13)."""
 

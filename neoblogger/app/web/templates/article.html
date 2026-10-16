@@ -41,7 +41,7 @@
 <p class="flash flash-warning">This article is not visible to regular users (author is not an approved publisher).</p>
 {% endif %}
 <header class="article-header">
-  <p class="meta">Posted by {{ article.author }} on <time datetime="{{ article.created }}">{{ article.created | readable_date }}</time></p>
+  <p class="meta">Posted by <a href="/author/{{ article.author | urlencode }}">{{ article.author }}</a> on <time datetime="{{ article.created }}">{{ article.created | readable_date }}</time></p>
   <p class="meta">{% for tag in article.tags %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}</p>
 </header>
 <section class="article-body">{{ rendered_body | safe }}</section>
@@ -49,7 +49,7 @@
   <h2>Comments</h2>
   {% for comment in comments %}
   <article class="comment">
-    <p class="meta">{{ comment.author }} · {{ comment.created | readable_date }}</p>
+    <p class="meta"><a href="/author/{{ comment.author | urlencode }}">{{ comment.author }}</a> · {{ comment.created | readable_date }}</p>
     <div>{{ comment_rendered[comment._id] | safe }}</div>
     {% if member and (member.administrator or member.display_name == comment.author) %}
     <form action="/comments/{{ comment._id }}/delete" method="post" class="inline-form">

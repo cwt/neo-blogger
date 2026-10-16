@@ -7,7 +7,7 @@ from ..repositories.documents import ArticleDocument, MemberDocument
 from ..repositories.members import MemberRepository
 from ..repositories.meta import MetaRepository
 from .timestamps import now_iso
-from .visibility import ArticleVisibility, feed_filter, tag_filter
+from .visibility import ArticleVisibility, author_filter, feed_filter, tag_filter
 
 __all__ = ["ArticleService", "CoverRequiredError"]
 
@@ -154,6 +154,13 @@ class ArticleService:
         self, viewer: MemberDocument | None, tag: str, page: int, per_page: int
     ) -> tuple[list[ArticleDocument], int]:
         return await self._articles.feed_page(tag_filter(viewer, tag), page, per_page)
+
+    async def author_page(
+        self, viewer: MemberDocument | None, author: str, page: int, per_page: int
+    ) -> tuple[list[ArticleDocument], int]:
+        return await self._articles.feed_page(
+            author_filter(viewer, author), page, per_page
+        )
 
     async def related_tags(
         self, viewer: MemberDocument | None, tag: str

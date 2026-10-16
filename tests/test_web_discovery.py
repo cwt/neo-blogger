@@ -161,6 +161,47 @@ async def test_search_rejections_flash_and_redirect(app: Any) -> None:
         assert "Please use only text" in flashed, hostile
 
 
+async def test_author_page_lists_published_only(app: Any) -> None:
+    root_client = await signup(app, "root")
+    await write_article(
+        app,
+        root_client,
+        title="Authored piece",
+        publish=True,
+        cover="https://x.io/c.webp",
+    )
+    await write_article(app, root_client, title="Authored draft", publish=False)
+    stranger = app.test_client()
+    rendered = await body_of(await stranger.get("/author/root"))
+    assert "Authored piece" in rendered
+    assert "Authored draft" not in rendered
+    assert "Posts by root" in rendered
+
+
+async def test_author_page_unknown_member_redirects(app: Any) -> None:
+    response = await app.test_client().get("/author/ghost")
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/"
+
+
+async def test_usernames_link_to_author_pages(app: Any) -> None:
+    from .test_web_blog import comment_id_from
+
+    root_client = await signup(app, "root")
+    article_id = await write_article(
+        app,
+        root_client,
+        title="Linked piece",
+        publish=True,
+        cover="https://x.io/c.webp",
+    )
+    home = await body_of(await root_client.get("/"))
+    assert 'href="/author/root"' in home
+    await comment_id_from(app, root_client, article_id)
+    article = await body_of(await root_client.get(f"/{article_id}"))
+    assert article.count('href="/author/root"') >= 2
+
+
 async def test_response_cache_serves_and_invalidates(app: Any) -> None:
     from neoblogger import build_app
 
