@@ -43,9 +43,20 @@ async def _seed_banner(app: Any, name: str) -> None:
 async def test_seeded_theme_renders_banner_and_credit(app: Any) -> None:
     await _seed_banner(app, "home")
     rendered = await body_of(await app.test_client().get("/"))
-    assert 'class="theme-banner"' in rendered
+    assert 'class="has-cover-hero"' in rendered
+    assert '<section class="cover-hero">' in rendered
     assert ".webp" in rendered
     assert "generated with Agnes AI" in rendered
+    assert rendered.count("<h1") == 1
+    assert rendered.count('aria-label="Breadcrumb"') == 1
+
+
+async def test_theme_hero_matches_cover_hero(app: Any) -> None:
+    """Theme and cover heroes share one skeleton: no layout jump on switch."""
+    await _seed_banner(app, "home")
+    home = await body_of(await app.test_client().get("/"))
+    assert '<section class="cover-hero">' in home
+    assert "cover-hero-inner" in home
 
 
 async def test_article_cover_wins_over_banner(app: Any) -> None:

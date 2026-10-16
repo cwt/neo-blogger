@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="/static/fonts.css">
   <link rel="stylesheet" href="/static/custom.css">
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% if theme_banner or (article and article.get("cover_url")) %}has-cover-hero{% endif %}{% endblock %}">
 <a class="skip-link visually-hidden" href="#content">Skip to content</a>
 <header class="site-header">
   <nav class="container">
@@ -51,21 +51,26 @@
     </ul>
   </nav>
 </header>
-{% block hero %}{% endblock %}
+{% block hero %}
+{% if theme_banner %}
+<section class="cover-hero">
+  <img class="cover-hero-img" src="{{ theme_banner }}" alt="" fetchpriority="high">
+  <div class="cover-hero-inner container">
+    {% include "_breadcrumbs.html" %}
+    <div class="cover-hero-titles">
+      <h1>{{ self.hero_title() }}</h1>
+      {{ self.hero_sub() }}
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
 <main class="container" id="content">
-  {% block breadcrumbs %}{% include "_breadcrumbs.html" %}{% endblock %}
+  {% block breadcrumbs %}{% if not (theme_banner or (article and article.get("cover_url"))) %}{% include "_breadcrumbs.html" %}{% endif %}{% endblock %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}{% for category, message in messages %}<p class="flash flash-{{ category }}">{{ message }}</p>{% endfor %}{% endif %}
   {% endwith %}
-  {% if theme_banner %}
-  <figure class="theme-banner">
-    <img src="{{ theme_banner }}" alt="" width="1568" height="672" fetchpriority="high">
-    <figcaption class="theme-caption">
-      <h1>{{ self.hero_title() }}</h1>
-      {{ self.hero_sub() }}
-    </figcaption>
-  </figure>
-  {% elif not (article and article.get("cover_url")) %}
+  {% if not (theme_banner or (article and article.get("cover_url"))) %}
   <h1>{% block hero_title %}{% endblock %}</h1>
   {% block hero_sub %}{% endblock %}
   {% endif %}

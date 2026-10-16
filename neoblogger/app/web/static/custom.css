@@ -281,38 +281,12 @@ main table {
 .cover-picker button[data-cover-url] img {
   border-radius: calc(var(--pico-border-radius) * 0.75);
 }
-/* Deploy-time theme banner: one illustration per page family (§10).
-   Absent without a generated theme, leaving the themeless default.
-   The page title overlays the art on a bottom gradient scrim so text
-   stays readable over any cover, dark or light. */
-.theme-banner { position: relative; margin: 0 0 1rem; }
-.theme-banner img {
-  display: block;
-  width: 100%;
-  height: clamp(150px, 30vh, 300px);
-  object-fit: cover;
-  border-radius: var(--pico-border-radius);
-}
-.theme-caption {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  padding: 3rem 1.25rem 1rem;
-  border-radius: 0 0 var(--pico-border-radius) var(--pico-border-radius);
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.68), transparent);
-}
-.theme-caption h1,
-.theme-caption p {
-  color: #fff;
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
-}
-.theme-caption h1 { margin-bottom: 0.25rem; }
-.theme-caption p { margin-bottom: 0; }
 .theme-credit { color: var(--pico-muted-color); }
-/* Full-bleed cover hero on article pages (§10, §16): the cover stretches to
-   the viewport top with the header, breadcrumbs, and titles overlaid.
-   Twin scrims keep every overlay readable on any cover: a top gradient
-   behind the header, a bottom gradient behind the titles. */
+/* Full-bleed cover hero (§10, §16): article covers and deploy-time theme
+   banners share one treatment — the image stretches to the viewport top
+   with the header, breadcrumbs, and titles overlaid, so switching pages
+   never jumps. Twin scrims keep every overlay readable on any image:
+   a top gradient behind the header, a bottom gradient behind the titles. */
 body.has-cover-hero .site-header {
   position: absolute;
   inset-inline: 0;
@@ -332,20 +306,29 @@ body.has-cover-hero .site-header .link-button {
   height: clamp(430px, 74vh, 660px);
   object-fit: cover;
 }
-.cover-hero-inner {
+/* Bottom scrim lives on the full-bleed section (not the centered inner),
+   so no vertical seam appears where the content column ends. */
+.cover-hero::after {
+  content: "";
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding-top: 4.5rem;
-  padding-bottom: 1.5rem;
+  pointer-events: none;
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.72) 0%,
     rgba(0, 0, 0, 0.25) 38%,
     transparent 55%
   );
+}
+.cover-hero-inner {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-top: 4.5rem;
+  padding-bottom: 1.5rem;
 }
 .cover-hero .breadcrumbs,
 .cover-hero .breadcrumbs a,

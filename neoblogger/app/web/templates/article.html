@@ -1,9 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ article.title }} · {{ site_title }}{% endblock %}
-{% block body_class %}{% if article.cover_url %}has-cover-hero{% endif %}{% endblock %}
 {% block hero_title %}{{ article.title }}{% endblock %}
 {% block hero_sub %}<p class="subtitle">{{ article.subtitle }}</p>{% endblock %}
-{% block breadcrumbs %}{% if not article.cover_url %}{% include "_breadcrumbs.html" %}{% endif %}{% endblock %}
 {% block hero %}
 {% if article.cover_url %}
 <section class="cover-hero">
@@ -16,7 +14,7 @@
     </div>
   </div>
 </section>
-{% endif %}
+{% else %}{{ super() }}{% endif %}
 {% endblock %}
 {% block description %}{{ g.article.description }}{% endblock %}
 {% block author %}{{ g.article.author }}{% endblock %}
