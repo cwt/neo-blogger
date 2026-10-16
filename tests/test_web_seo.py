@@ -200,6 +200,7 @@ def test_mobile_nav_and_code_contrast_css() -> None:
     css = Path("neoblogger/app/web/static/custom.css").read_text()
     assert ".site-header .nav-links li { white-space: nowrap; padding: 0; }" in css
     assert "div.highlight pre { background-color: #f8f8f8;" in css
+    assert "body.has-cover-hero .site-header { pointer-events: none; }" in css
 
 
 async def test_thin_pages_opt_out_of_indexing(app: Any) -> None:

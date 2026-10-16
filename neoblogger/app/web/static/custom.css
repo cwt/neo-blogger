@@ -299,6 +299,15 @@ body.has-cover-hero .site-header a,
 body.has-cover-hero .site-header .link-button {
   color: #fff;
 }
+/* The overlaid header's box overlaps the hero's top content: let clicks
+   fall through everywhere except on genuinely interactive controls. */
+body.has-cover-hero .site-header { pointer-events: none; }
+body.has-cover-hero .site-header a,
+body.has-cover-hero .site-header button,
+body.has-cover-hero .site-header input,
+body.has-cover-hero .site-header summary {
+  pointer-events: auto;
+}
 .cover-hero { position: relative; margin: 0; min-height: clamp(215px, 37vh, 330px); }
 .cover-hero-img {
   position: absolute;
