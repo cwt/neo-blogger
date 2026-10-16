@@ -19,7 +19,7 @@ no icon font is shipped.
 
 | Asset | License | Source |
 |---|---|---|
-| fts5-icu-tokenizer sources, pinned at tag `v7.2.0` (compiled in the container image by `Containerfile`; pin recorded in `.hgsubstate`) | MIT (Copyright 2025 Chaiwat Suttipongsakul) | git@github.com:cwt/fts5-icu-tokenizer.git |
+| fts5-icu-tokenizer sources, pinned at tag `v7.2.1` (compiled in the container image by `Containerfile`; pin recorded in `.hgsubstate`) | MIT (Copyright 2025 Chaiwat Suttipongsakul) | git@github.com:cwt/fts5-icu-tokenizer.git |
 
 Cloning this repository must initialize subrepos (`hg clone` fetches
 `tools/tokenizer` automatically on update); the `git` executable is
