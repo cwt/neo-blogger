@@ -299,11 +299,13 @@ body.has-cover-hero .site-header a,
 body.has-cover-hero .site-header .link-button {
   color: #fff;
 }
-.cover-hero { position: relative; margin: 0; }
+.cover-hero { position: relative; margin: 0; min-height: clamp(215px, 37vh, 330px); }
 .cover-hero-img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
-  height: clamp(430px, 74vh, 660px);
+  height: 100%;
   object-fit: cover;
 }
 /* Bottom scrim lives on the full-bleed section (not the centered inner),
@@ -321,9 +323,9 @@ body.has-cover-hero .site-header .link-button {
   );
 }
 .cover-hero-inner {
-  position: absolute;
-  inset: 0;
+  position: relative;
   z-index: 1;
+  min-height: inherit;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -344,7 +346,7 @@ body.has-cover-hero .site-header .link-button {
 }
 .cover-hero-titles p { margin-bottom: 0; }
 @media (max-width: 55.99rem) {
-  .cover-hero-img { height: clamp(330px, 58vh, 480px); }
+  .cover-hero { min-height: clamp(165px, 29vh, 240px); }
   .cover-hero-inner { padding-top: 4rem; }
 }
 /* Copy affordance overlays its own code block (spec §6). */
