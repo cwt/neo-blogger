@@ -4,12 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from neoblogger.app.config import (
-    ApplicationConfig,
-    ConfigurationError,
-    RuntimeConfig,
-    load_config,
-)
+from neoblogger.app.config import ConfigurationError, load_config
 
 
 @pytest.fixture(autouse=True)
@@ -137,12 +132,3 @@ def test_production_accepts_strong_secret(tmp_path: Path) -> None:
     )
     config = load_config(str(path))
     assert config.application.https is True
-
-
-def test_base_url_trailing_slash_normalized() -> None:
-    from neoblogger.app.blueprints.seo import canonical_url_for
-
-    config = RuntimeConfig(application=ApplicationConfig(base_url="https://x.io"))
-    assert canonical_url_for(config.application.base_url, "http://x/", "/") == (
-        "https://x.io/"
-    )

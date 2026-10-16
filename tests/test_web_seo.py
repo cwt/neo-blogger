@@ -22,6 +22,15 @@ def test_canonical_url_for_normalizes_base() -> None:
     )
 
 
+def test_configured_base_url_trailing_slash_normalized() -> None:
+    from neoblogger.app.config import ApplicationConfig, RuntimeConfig
+
+    config = RuntimeConfig(application=ApplicationConfig(base_url="https://x.io"))
+    assert canonical_url_for(config.application.base_url, "http://x/", "/") == (
+        "https://x.io/"
+    )
+
+
 async def test_sitemap_lists_public_articles_only(app: Any) -> None:
     root_client = await signup(app, "root")
     await write_article(

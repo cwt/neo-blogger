@@ -117,6 +117,10 @@ class ProxyConfig(_ScalarSection):
     trusted_proxies: list[str] = ["127.0.0.1", "::1"]
 
 
+MIN_PRODUCTION_SECRET_LEN = 32
+"""Minimum ``secret_key`` length when booting with ``https = true`` (§15.9)."""
+
+
 class DatabaseConfig(_ScalarSection):
     """Engine settings (``[database]``)."""
 
@@ -149,6 +153,17 @@ class RuntimeConfig(BaseModel):
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
 
 
+_SECTION_TYPES: dict[str, type[_ScalarSection]] = {
+    "application": ApplicationConfig,
+    "database": DatabaseConfig,
+    "caching": CacheConfig,
+    "posts": PostsConfig,
+    "uploads": UploadConfig,
+    "proxy": ProxyConfig,
+}
+"""TOML section name → model, mirroring ``RuntimeConfig`` fields (§18)."""
+
+
 def _read_toml(config_path: str) -> dict[str, Any]:
     """Read and parse a TOML file, translating load errors to faults."""
     try:
@@ -168,14 +183,8 @@ def _validate_document(document: dict[str, Any]) -> dict[str, Any]:
     if unknown:
         raise ConfigurationError.fault("unrecognized section(s): " + ", ".join(unknown))
     sections: dict[str, Any] = {}
-    for name, section_type in (
-        ("application", ApplicationConfig),
-        ("database", DatabaseConfig),
-        ("caching", CacheConfig),
-        ("posts", PostsConfig),
-        ("uploads", UploadConfig),
-        ("proxy", ProxyConfig),
-    ):
+    for name in RuntimeConfig.model_fields:
+        section_type = _SECTION_TYPES[name]
         raw = document.get(name, {})
         if raw is None:
             raw = {}
@@ -190,15 +199,15 @@ def _validate_document(document: dict[str, Any]) -> dict[str, Any]:
 def _production_gate(config: RuntimeConfig) -> None:
     """Refuse to boot production without a strong secret key (§15.9)."""
     secret = config.application.secret_key.strip()
-    if config.application.https:
+    if config.application.https and len(secret) < MIN_PRODUCTION_SECRET_LEN:
         if not secret:
             raise ConfigurationError.missing_production_secret(
                 "secret_key is required when https = true"
             )
-        if len(secret) < 32:
-            raise ConfigurationError.missing_production_secret(
-                "secret_key must be at least 32 characters when https = true"
-            )
+        raise ConfigurationError.missing_production_secret(
+            f"secret_key must be at least {MIN_PRODUCTION_SECRET_LEN} "
+            "characters when https = true"
+        )
 
 
 def load_config(config_path: str | None = None) -> RuntimeConfig:

@@ -10,20 +10,13 @@ from neoblogger.app.config import load_config
 from neoblogger.app.context import AppContext
 from neoblogger.cli.admin_repair import run as admin_repair_run
 from neoblogger.cli.reindex import run as reindex_run
+from tests.conftest import write_cli_test_config
 
 
 def _make_config(tmp_path: Path) -> str:
-    db_file = tmp_path / "maint_test.db"
-    cfg_file = tmp_path / "maint_test.toml"
-    cfg_file.write_text(
-        f"""[application]
-secret_key = "test-secret-key-sufficiently-long-for-testing"
-
-[database]
-path = "{db_file}"
-"""
+    return write_cli_test_config(
+        tmp_path, db_name="maint_test.db", toml_name="maint_test.toml"
     )
-    return str(cfg_file)
 
 
 async def test_admin_repair_honors_config_path(tmp_path: Path) -> None:
@@ -266,9 +259,9 @@ def test_theme_parser_env_file_flag() -> None:
 
 
 def test_theme_now_iso_utc() -> None:
-    from neoblogger.cli.theme import _now_iso
+    from neoblogger.app.services.timestamps import now_iso
 
-    iso = _now_iso()
+    iso = now_iso()
     assert "+00:00" in iso or iso.endswith("Z")
 
 
@@ -283,21 +276,12 @@ async def test_theme_generate_refuses_without_key(
 
 
 async def _seed_theme_banner(cfg: str, name: str) -> None:
+    from tests.conftest import seed_theme_banner
+
     context = AppContext.build(load_config(cfg))
     try:
         await context.database.start()
-        await context.objects.upload(
-            f"theme_{name}.webp",
-            b"fake-banner-bytes",
-            {
-                "owner": "theme",
-                "original_filename": f"theme_{name}.webp",
-                "alt_text": name,
-                "upload_time": "2026-10-12T00:00:00",
-                "content_type": "image/webp",
-                "theme_banner": name,
-            },
-        )
+        await seed_theme_banner(context.objects, name)
     finally:
         await context.close()
 

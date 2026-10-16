@@ -57,7 +57,12 @@ class ArticleVisibility:
         self._comments = comments
 
     def can_view(self, viewer: MemberDocument | None, article: ArticleDocument) -> bool:
-        """Whether ``viewer`` may open ``article``'s page (§13)."""
+        """Whether ``viewer`` may open ``article``'s page (§13).
+
+        Decision table: drafts → author or administrator only; published →
+        administrator always, otherwise the author's active-publisher
+        snapshot wins, falling back to the author themselves.
+        """
         if article.get("status") != "published":
             if viewer is None:
                 return False

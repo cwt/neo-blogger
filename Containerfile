@@ -17,12 +17,14 @@ RUN python3.14 -m pip install --no-cache-dir build hatchling \
     && python3.14 -m build --wheel --no-isolation --outdir /dist
 
 # Compile the ICU tokenizer extension for Thai/CJK search (spec §12.2, §19.3).
+# The .so copy is required (build fails without it); the header copy is
+# best-effort for downstream builds and must not fail the image.
 COPY tools/tokenizer/ /build/tokenizer/
 WORKDIR /build/tokenizer
 RUN zig build -Doptimize=ReleaseFast \
     && mkdir -p /out/lib \
-    && cp zig-out/lib/libfts5_icu*.so /out/lib/ \
-    && mkdir -p /out/include && cp src/c_includes.h /out/include/ || true
+    && cp zig-out/lib/libfts5_icu*.so /out/lib/
+RUN mkdir -p /out/include && cp src/c_includes.h /out/include/ || true
 
 FROM fedora:44 AS runtime
 

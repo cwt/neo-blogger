@@ -35,7 +35,7 @@ from ..app.services.theme import (
     THEME_OWNER,
     list_theme_banners,
 )
-from ..app.services.timestamps import now_iso as _shared_now_iso
+from ..app.services.timestamps import now_iso
 
 __all__ = [
     "BANNERS",
@@ -57,8 +57,14 @@ DEFAULT_API_ENDPOINT = "https://apihub.agnes-ai.com/v1/images/generations"
 DEFAULT_MODEL = "agnes-image-2.5-flash"
 SIZE = "1K"
 RATIO = "21:9"
-REQUEST_TIMEOUT_SECONDS = 180
-MAX_WIDTH = 1600
+GENERATION_TIMEOUT_S = 180
+"""HTTP timeout for generation and download requests (spec §10)."""
+
+BANNER_MAX_WIDTH_PX = 1600
+"""Banners wider than this are downscaled before storage (§10.2)."""
+
+WEBP_QUALITY = 85
+"""WebP quality for theme banners, matching upload conversion (§10.2)."""
 
 _STYLE_SUFFIX = (
     "minimal editorial banner illustration, warm paper texture, muted "
@@ -137,37 +143,43 @@ def resolve_dotenv_path(
     return ".env"
 
 
+def _resolve_var(
+    names: tuple[str, ...],
+    environ: Mapping[str, str],
+    dotenv_path: str,
+    default: str,
+) -> str:
+    """First non-empty value from env vars, then the dotenv file, else default."""
+    for key in names:
+        value = environ.get(key, "").strip()
+        if value:
+            return value
+    dotenv = read_dotenv(dotenv_path)
+    for key in names:
+        value = dotenv.get(key, "").strip()
+        if value:
+            return value
+    return default
+
+
 def resolve_key(environ: Mapping[str, str], dotenv_path: str) -> str:
     """The Agnes key: explicit environment first, then the dotenv file."""
-    if environ.get("AGNES_API_KEY", "").strip():
-        return environ["AGNES_API_KEY"].strip()
-    return read_dotenv(dotenv_path).get("AGNES_API_KEY", "").strip()
+    return _resolve_var(("AGNES_API_KEY",), environ, dotenv_path, "")
 
 
 def resolve_endpoint(environ: Mapping[str, str], dotenv_path: str) -> str:
     """The generation API endpoint: env var first, then dotenv, then default."""
-    for key in ("AGNES_API_ENDPOINT", "AGNES_ENDPOINT"):
-        val = environ.get(key, "").strip()
-        if val:
-            return val
-    dotenv = read_dotenv(dotenv_path)
-    for key in ("AGNES_API_ENDPOINT", "AGNES_ENDPOINT"):
-        val = dotenv.get(key, "").strip()
-        if val:
-            return val
-    return DEFAULT_API_ENDPOINT
+    return _resolve_var(
+        ("AGNES_API_ENDPOINT", "AGNES_ENDPOINT"),
+        environ,
+        dotenv_path,
+        DEFAULT_API_ENDPOINT,
+    )
 
 
 def resolve_model(environ: Mapping[str, str], dotenv_path: str) -> str:
     """The generation model: AGNES_MODEL env var, then dotenv, then default."""
-    val = environ.get("AGNES_MODEL", "").strip()
-    if val:
-        return val
-    dotenv = read_dotenv(dotenv_path)
-    val = dotenv.get("AGNES_MODEL", "").strip()
-    if val:
-        return val
-    return DEFAULT_MODEL
+    return _resolve_var(("AGNES_MODEL",), environ, dotenv_path, DEFAULT_MODEL)
 
 
 def _post_json(
@@ -184,7 +196,7 @@ def _post_json(
         },
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as reply:
+    with urllib.request.urlopen(request, timeout=GENERATION_TIMEOUT_S) as reply:
         document: dict[str, Any] = json.loads(reply.read().decode("utf-8"))
         return document
 
@@ -207,7 +219,7 @@ def _fetch_pixels(
         return decoded
     if entry.get("url"):
         with urllib.request.urlopen(
-            entry["url"], timeout=REQUEST_TIMEOUT_SECONDS
+            entry["url"], timeout=GENERATION_TIMEOUT_S
         ) as reply:
             downloaded: bytes = reply.read()
             return downloaded
@@ -219,10 +231,12 @@ def _to_webp(raw: bytes) -> bytes:
     image = Image.open(io.BytesIO(raw))
     image.load()
     rgb = image.convert("RGB")
-    if rgb.width > MAX_WIDTH:
-        rgb.thumbnail((MAX_WIDTH, MAX_WIDTH * 2), Image.Resampling.LANCZOS)
+    if rgb.width > BANNER_MAX_WIDTH_PX:
+        rgb.thumbnail(
+            (BANNER_MAX_WIDTH_PX, BANNER_MAX_WIDTH_PX * 2), Image.Resampling.LANCZOS
+        )
     buffer = io.BytesIO()
-    rgb.save(buffer, format="WEBP", quality=85)
+    rgb.save(buffer, format="WEBP", quality=WEBP_QUALITY)
     return buffer.getvalue()
 
 
@@ -250,10 +264,6 @@ async def _clear_theme(context: AppContext) -> int:
     for row in rows:
         await context.objects.delete(str(row["id"]))
     return len(rows)
-
-
-def _now_iso() -> str:
-    return _shared_now_iso()
 
 
 async def run(
@@ -314,7 +324,7 @@ async def run(
                     "owner": THEME_OWNER,
                     "original_filename": f"theme_{name}.webp",
                     "alt_text": f"{name} banner",
-                    "upload_time": _now_iso(),
+                    "upload_time": now_iso(),
                     "content_type": "image/webp",
                     THEME_BANNER_KEY: name,
                 },

@@ -33,20 +33,11 @@ async def test_no_theme_renders_themeless_default(app: Any) -> None:
 
 
 async def _seed_banner(app: Any, name: str) -> None:
+    from .conftest import seed_theme_banner
+
     context = app.extensions["neoblogger_context"]
     await context.database.start()
-    await context.objects.upload(
-        f"theme_{name}.webp",
-        b"fake-banner-bytes",
-        {
-            "owner": "theme",
-            "original_filename": f"theme_{name}.webp",
-            "alt_text": name,
-            "upload_time": "2026-10-12T00:00:00",
-            "content_type": "image/webp",
-            "theme_banner": name,
-        },
-    )
+    await seed_theme_banner(context.objects, name)
 
 
 async def test_seeded_theme_renders_banner_and_credit(app: Any) -> None:

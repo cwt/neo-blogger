@@ -88,3 +88,35 @@ def make_test_config(tmp_path: Path, name: str = "test.db") -> Any:
     config = RuntimeConfig()
     config.database.path = str(tmp_path / name)
     return config
+
+
+def write_cli_test_config(
+    tmp_path: Path, db_name: str = "cli_test.db", toml_name: str = "cli_test.toml"
+) -> str:
+    """Write a minimal CLI test TOML pointing at a tmp database."""
+    db_file = tmp_path / db_name
+    cfg_file = tmp_path / toml_name
+    cfg_file.write_text(
+        "[application]\n"
+        'secret_key = "test-secret-key-sufficiently-long-for-testing"\n'
+        "\n[database]\n"
+        f'path = "{db_file}"\n',
+        encoding="utf-8",
+    )
+    return str(cfg_file)
+
+
+async def seed_theme_banner(objects: Any, name: str) -> None:
+    """Store one fake theme banner image for rendering tests."""
+    await objects.upload(
+        f"theme_{name}.webp",
+        b"fake-banner-bytes",
+        {
+            "owner": "theme",
+            "original_filename": f"theme_{name}.webp",
+            "alt_text": name,
+            "upload_time": "2026-10-12T00:00:00",
+            "content_type": "image/webp",
+            "theme_banner": name,
+        },
+    )

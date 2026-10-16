@@ -203,6 +203,11 @@ class ResponseCache:
             self._total_bytes = max(0, self._total_bytes - entry.size_bytes)
 
     def _sweep_expired_memory(self) -> None:
+        # Insertion order is expiry order: put() pops existing keys before
+        # re-inserting and stamps monotonic() time, so scanning from the
+        # front and stopping at the first fresh entry is sufficient.
+        # (File-backed entries instead use wall-clock mtimes, which must
+        # survive restarts — hence the deliberate two-clock split.)
         now = time.monotonic()
         expired: list[str] = []
         for key, entry in self._entries.items():

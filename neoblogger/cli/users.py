@@ -40,6 +40,11 @@ HEX_ID_LENGTH = 24
 """Length of a hex-string document id accepted as a member identifier."""
 
 
+def _yes_no(value: bool) -> str:
+    """Render a member flag for the fixed-width roster table (§11.2)."""
+    return "yes" if value else "no"
+
+
 def _is_hex_id(identifier: str) -> bool:
     """Whether ``identifier`` looks like a 24-character hex document id."""
     if len(identifier) != HEX_ID_LENGTH:
@@ -121,12 +126,10 @@ async def _run_list(args: argparse.Namespace) -> int:
         print(header)
         print("-" * len(header))
         for m in filtered:
-            active_s = "yes" if m["active"] else "no"
-            admin_s = "yes" if m["administrator"] else "no"
-            pub_s = "yes" if m["publisher"] else "no"
             print(
                 f"{m['_id']:<24}  {m['display_name']:<20}  {m['email']:<28}  "
-                f"{active_s:<6}  {admin_s:<5}  {pub_s:<9}"
+                f"{_yes_no(m['active']):<6}  {_yes_no(m['administrator']):<5}  "
+                f"{_yes_no(m['publisher']):<9}"
             )
         return 0
     finally:
@@ -159,9 +162,9 @@ async def _run_show(args: argparse.Namespace) -> int:
         print(f"Member: {member['display_name']}")
         print(f"  ID:                     {member['_id']}")
         print(f"  Email:                  {member['email']}")
-        print(f"  Active:                 {'yes' if member['active'] else 'no'}")
-        print(f"  Administrator:          {'yes' if member['administrator'] else 'no'}")
-        print(f"  Publisher:              {'yes' if member['publisher'] else 'no'}")
+        print(f"  Active:                 {_yes_no(member['active'])}")
+        print(f"  Administrator:          {_yes_no(member['administrator'])}")
+        print(f"  Publisher:              {_yes_no(member['publisher'])}")
         print(f"  Security question code: {member['security_question_code']}")
         print("  Statistics:")
         print(f"    Published articles:   {stats['published']}")

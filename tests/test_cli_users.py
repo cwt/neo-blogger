@@ -9,20 +9,7 @@ from neoblogger.app.config import load_config
 from neoblogger.app.context import AppContext
 from neoblogger.app.security.hashing import verify_secret
 from neoblogger.cli.users import build_parser, resolve_member
-
-
-def _make_config(tmp_path: Path) -> str:
-    db_file = tmp_path / "cli_test.db"
-    cfg_file = tmp_path / "cli_test.toml"
-    cfg_file.write_text(
-        f"""[application]
-secret_key = "test-secret-key-sufficiently-long-for-testing"
-
-[database]
-path = "{db_file}"
-"""
-    )
-    return str(cfg_file)
+from tests.conftest import write_cli_test_config as _make_config
 
 
 async def test_build_parser_help() -> None:
