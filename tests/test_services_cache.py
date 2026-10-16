@@ -80,7 +80,7 @@ async def test_file_cache_operations(tmp_path: Path) -> None:
     assert await cache.get("home:1:10", 2) is None
 
     # Clear drops files
-    cache.clear()
+    await cache.clear()
     assert cache.size == 0
     assert await cache.get("home:1:10", 1) is None
 

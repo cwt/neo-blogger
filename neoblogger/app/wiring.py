@@ -196,6 +196,7 @@ def assemble(app: Quart, context: AppContext) -> None:
         await ensure_theme_banners(context)
         if not (cache.active() and context.response_cache is not None):
             return
+        await cache.clear()
         version = await context.meta.content_version()
         per_page = context.config.posts.per_page
         key = f"home:1:{per_page}"
@@ -345,7 +346,7 @@ def assemble(app: Quart, context: AppContext) -> None:
             # Sign-out clears the response cache (spec §4.3). Stale-cookie
             # hygiene above only drops the cookie: a disabled account's
             # leftover cookie must not evict cached pages for everyone.
-            cache.clear()
+            await cache.clear()
         elif getattr(g, "set_session_cookie", None):
             _set_session_cookie(response, g.set_session_cookie, secure=secure)
             response.delete_cookie(_CSRF_COOKIE_NAME)
