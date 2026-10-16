@@ -30,13 +30,21 @@ _CONVERSION_CAP = 20 * 1024 * 1024
 _YEAR_SECONDS = 31_536_000
 
 
-def _content_type_for(extension: str) -> str:
-    return {
-        "webp": "image/webp",
-        "jpg": "image/jpeg",
-        "jpeg": "image/jpeg",
-        "png": "image/png",
-    }.get(extension, "application/octet-stream")
+def _media_for_extension(extension: str) -> tuple[str, str] | None:
+    """(content type, conversion target) for a served extension.
+
+    Returns ``None`` for unknown extensions; the target is ``""`` when the
+    stored WebP serves as-is (§10.4).
+    """
+    match extension:
+        case "webp":
+            return "image/webp", ""
+        case "jpg" | "jpeg":
+            return "image/jpeg", "jpg"
+        case "png":
+            return "image/png", "png"
+        case _:
+            return None
 
 
 def _set_image_headers(
@@ -55,13 +63,6 @@ def _not_modified_response(etag: str, registry: dict[str, Any]) -> WerkzeugRespo
     response = WerkzeugResponse("", status=304)
     _set_image_headers(response, etag, registry)
     return response
-
-
-def _conversion_target(extension: str) -> str:
-    """The legacy conversion format for an extension, or ``""`` for WebP."""
-    if extension == "webp":
-        return ""
-    return "jpg" if extension in ("jpg", "jpeg") else "png"
 
 
 def _image_response(
@@ -149,8 +150,10 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
     @blueprint.route("/images/<hexid:object_id>.<extension>")
     async def serve(object_id: str, extension: str) -> WerkzeugResponse:
         registry = await context.objects.metadata(object_id)
-        if registry is None or extension not in ("webp", "jpg", "jpeg", "png"):
+        media = _media_for_extension(extension)
+        if registry is None or media is None:
             _abort(404)
+        content_type, target = media
         etag = registry["md5"]
         if request.if_none_match and etag in request.if_none_match:
             return _not_modified_response(etag, registry)
@@ -158,8 +161,6 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
         payload = await context.objects.data(object_id)
         if payload is None:
             _abort(404)
-        content_type = _content_type_for(extension)
-        target = _conversion_target(extension)
         if target:
             if len(payload) <= _CONVERSION_CAP:
                 payload = await context.run_image(

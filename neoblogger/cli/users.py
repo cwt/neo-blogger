@@ -240,16 +240,19 @@ async def _run_create(args: argparse.Namespace) -> int:
         is_admin = promoted
         is_publisher = promoted
         if not promoted:
-            if args.admin and args.publisher:
-                await context.members.promote_admin(member_id)
-                is_admin = True
-                is_publisher = True
-            elif args.admin:
-                await context.members.set_administrator(member_id, True)
-                is_admin = True
-            elif args.publisher:
-                await context.members.set_publisher(member_id, True)
-                is_publisher = True
+            match (args.admin, args.publisher):
+                case (True, True):
+                    await context.members.promote_admin(member_id)
+                    is_admin = True
+                    is_publisher = True
+                case (True, _):
+                    await context.members.set_administrator(member_id, True)
+                    is_admin = True
+                case (_, True):
+                    await context.members.set_publisher(member_id, True)
+                    is_publisher = True
+                case _:
+                    pass
 
         if is_admin or is_publisher:
             await context.meta.bump_content_version()

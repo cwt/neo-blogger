@@ -47,12 +47,13 @@ def banner_for_path(path: str) -> str:
     """
     if path == "/":
         return "home"
-    first = path.strip("/").split("/", 1)[0]
-    if first in _PAGE_BANNERS:
-        return _PAGE_BANNERS[first]
-    if _HEXID.fullmatch(first) is not None and "/" not in path.strip("/"):
-        return "article"
-    return "error"
+    match path.strip("/").split("/", 1):
+        case [first, *_] if first in _PAGE_BANNERS:
+            return _PAGE_BANNERS[first]
+        case [first] if _HEXID.fullmatch(first) is not None:
+            return "article"
+        case _:
+            return "error"
 
 
 async def list_theme_banners(objects: ObjectRepository) -> Any:
