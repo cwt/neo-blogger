@@ -8,6 +8,7 @@ event loop only: nested submits from inside executor work deadlock on
 """
 
 import asyncio
+import contextlib
 import logging
 import sqlite3
 from collections.abc import Callable
@@ -159,22 +160,64 @@ def backfill_sole_admin_publisher(connection: neosqlite.Connection) -> None:
 def backfill_author_snapshots(connection: Any) -> None:
     """Recompute denormalized author visibility snapshots (§13, §19.6).
 
-    Unconditional per-member update: ``modified_count`` only advances when
-    a value actually differs, so the pass is idempotent and cheap.
+    Resyncs both articles and comments (bugs/004); only touches distinct
+    authors present in content and only out-of-sync rows (bugs/019).
     """
     articles = connection.articles
+    comments = connection.comments
+    try:
+        article_authors = set(articles.distinct("author"))
+    except Exception:
+        article_authors = set()
+    try:
+        comment_authors = set(comments.distinct("author"))
+    except Exception:
+        comment_authors = set()
+    authors = article_authors | comment_authors
+    members_by_name: dict[str, Any] = {}
+    try:
+        for member in list(connection.members.find({})):
+            members_by_name[str(member.get("display_name", ""))] = member
+    except Exception:
+        members_by_name = {}
     changed = 0
-    for member in list(connection.members.find({})):
-        snapshots = {
-            "author_active": bool(member.get("active", False)),
-            "author_publisher": bool(member.get("publisher", False)),
-        }
+    # Default missing flags first so the mismatch pass repairs them too.
+    with contextlib.suppress(Exception):
+        comments.update_many(
+            {"author_active": {"$exists": False}}, {"$set": {"author_active": True}}
+        )
+    for name in authors:
+        member = members_by_name.get(name)
+        if member is None:
+            continue
+        active = bool(member.get("active", False))
+        publisher = bool(member.get("publisher", False))
         result = articles.update_many(
-            {"author": member["display_name"]}, {"$set": snapshots}
+            {
+                "author": name,
+                "$or": [
+                    {"author_active": {"$ne": active}},
+                    {"author_publisher": {"$ne": publisher}},
+                    {"author_active": {"$exists": False}},
+                    {"author_publisher": {"$exists": False}},
+                ],
+            },
+            {"$set": {"author_active": active, "author_publisher": publisher}},
         )
         changed += result.modified_count
+        comment_result = comments.update_many(
+            {
+                "author": name,
+                "$or": [
+                    {"author_active": {"$ne": active}},
+                    {"author_active": {"$exists": False}},
+                ],
+            },
+            {"$set": {"author_active": active}},
+        )
+        changed += comment_result.modified_count
     if changed:
-        _logger.info("resynced author visibility snapshots on %d articles", changed)
+        _logger.info("resynced author visibility snapshots on %d rows", changed)
 
 
 def run_backfills(connection: Any) -> None:

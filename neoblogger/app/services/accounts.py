@@ -23,6 +23,8 @@ __all__ = [
     "SECURITY_QUESTION_LABELS",
     "AccountDisabledError",
     "AccountService",
+    "validate_display_name",
+    "validate_email",
 ]
 
 SECURITY_QUESTION_LABELS: dict[str, str] = {
@@ -36,6 +38,29 @@ SECURITY_QUESTION_LABELS: dict[str, str] = {
 }
 
 SECURITY_QUESTIONS: tuple[str, ...] = tuple(SECURITY_QUESTION_LABELS)
+
+
+def validate_email(email: str) -> str:
+    """Normalize and validate an email address (bugs/003, spec §1.3)."""
+    normalized = email.strip().lower()
+    if not normalized:
+        raise ValueError("an email address is required")
+    local, sep, domain = normalized.partition("@")
+    if not sep or not local or not domain or "." not in domain:
+        raise ValueError("enter a valid email address")
+    if " " in normalized:
+        raise ValueError("enter a valid email address")
+    return normalized
+
+
+def validate_display_name(display_name: str) -> str:
+    """Normalize and validate a display name (bugs/003)."""
+    normalized = display_name.strip()
+    if not normalized:
+        raise ValueError("a display name is required")
+    if len(normalized) > 50:
+        raise ValueError("display name must be at most 50 characters")
+    return normalized
 
 
 class AccountDisabledError(Exception):
@@ -70,12 +95,8 @@ class AccountService:
         check runs inside the single insert work unit, so concurrent
         registrations cannot both win.
         """
-        display_name = display_name.strip()
-        email = email.strip().lower()
-        if not display_name:
-            raise ValueError("a display name is required")
-        if not email:
-            raise ValueError("an email address is required")
+        display_name = validate_display_name(display_name)
+        email = validate_email(email)
         if not password:
             raise ValueError("a password is required")
         if not answer.strip():
@@ -157,9 +178,7 @@ class AccountService:
         answer: str,
     ) -> int:
         """Rotate credentials; the question/answer is mandatory (§4.6)."""
-        new_email = new_email.strip().lower()
-        if not new_email:
-            raise ValueError("an email address is required")
+        new_email = validate_email(new_email)
         if not answer.strip():
             raise ValueError("a security answer is required")
         if question_code not in SECURITY_QUESTIONS:

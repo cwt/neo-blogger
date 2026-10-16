@@ -166,6 +166,9 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
         if article is None or not context.visibility.can_view(g.member, article):
             await flash("That content is not available.", "error")
             return redirect("/")
+        if article.get("status") != "published":
+            await flash("That content is not available.", "error")
+            return redirect("/")
         form = await request.form
         try:
             await context.comment_service.add(

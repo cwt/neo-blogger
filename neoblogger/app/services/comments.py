@@ -33,9 +33,13 @@ class CommentService:
         text: str,
         created: str,
     ) -> str:
-        """Attach a comment to an article (spec §7)."""
+        """Attach a comment to a published article (spec §7, bugs/002/003)."""
         if not viewer["active"]:
             raise ValueError("disabled members cannot comment")
+        if article.get("status") != "published":
+            raise ValueError("drafts cannot accumulate comments")
+        if not text.strip():
+            raise ValueError("comment text is required")
         comment_id = await self._comments.create(
             text,
             viewer["display_name"],

@@ -24,6 +24,33 @@ def _parse_tags(raw: str) -> list[str]:
     return tags
 
 
+def _validate_cover_url(cover_url: str) -> None:
+    """Reject non-local/non-http cover URLs (bugs/003)."""
+    stripped = cover_url.strip()
+    if not stripped:
+        return
+    if stripped.startswith("/images/"):
+        return
+    lowered = stripped.lower()
+    if lowered.startswith("http://") or lowered.startswith("https://"):
+        return
+    raise ValueError("cover image URL must use /images/ or http(s)://")
+
+
+def _validate_article_fields(title: str, subtitle: str, body: str) -> None:
+    """Server-side article validation (bugs/003, spec §1.3)."""
+    if not title.strip():
+        raise ValueError("article title is required")
+    if not subtitle.strip():
+        raise ValueError("article subtitle is required")
+    if not body.strip():
+        raise ValueError("article body is required")
+    if len(title.strip()) > 200:
+        raise ValueError("article title must be at most 200 characters")
+    if len(subtitle.strip()) > 300:
+        raise ValueError("article subtitle must be at most 300 characters")
+
+
 def _now_iso() -> str:
     """The current local timestamp as an ISO string (spec §5.1)."""
     return datetime.datetime.now().isoformat(timespec="seconds")
@@ -68,6 +95,8 @@ class ArticleService:
         """
         tags = _parse_tags(tags_raw)
         status = "published" if publish else "draft"
+        _validate_article_fields(title, subtitle, body)
+        _validate_cover_url(cover_url)
         if publish and not cover_url.strip():
             raise CoverRequiredError("a cover image is required to publish")
         if article_id is None:
@@ -114,9 +143,8 @@ class ArticleService:
         return saved_id
 
     async def delete(self, article: ArticleDocument) -> None:
-        """Cascade comments for published articles and remove the document (§5.4)."""
-        if article["status"] == "published":
-            await self._visibility.delete_comments_for(article["_id"])
+        """Cascade comments and remove the document (§5.4, bugs/002)."""
+        await self._visibility.delete_comments_for(article["_id"])
         await self._articles.delete(article["_id"])
         await self._meta.bump_content_version()
 

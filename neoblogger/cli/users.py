@@ -27,7 +27,11 @@ from ..app.context import AppContext
 from ..app.repositories.documents import MemberDocument
 from ..app.repositories.members import MemberAlreadyExistsError
 from ..app.security.hashing import async_hash_secret, normalize_answer
-from ..app.services.accounts import SECURITY_QUESTIONS
+from ..app.services.accounts import (
+    SECURITY_QUESTIONS,
+    validate_display_name,
+    validate_email,
+)
 
 __all__ = ["build_parser", "main", "resolve_member"]
 
@@ -168,13 +172,11 @@ async def _run_create(args: argparse.Namespace) -> int:
     context = AppContext.build(load_config(args.config))
     try:
         await context.database.start()
-        display_name: str = args.display_name.strip()
-        email: str = args.email.strip().lower()
-        if not display_name:
-            print("Display name cannot be empty.", file=sys.stderr)
-            return 1
-        if not email:
-            print("Email cannot be empty.", file=sys.stderr)
+        try:
+            display_name = validate_display_name(args.display_name)
+            email = validate_email(args.email)
+        except ValueError as error:
+            print(f"Error: {error}", file=sys.stderr)
             return 1
 
         password: str | None = args.password
@@ -382,9 +384,10 @@ async def _run_set_email(args: argparse.Namespace) -> int:
         if member is None:
             print(f"Member {args.identifier!r} not found.", file=sys.stderr)
             return 1
-        new_email: str = args.new_email.strip().lower()
-        if not new_email:
-            print("New email cannot be empty.", file=sys.stderr)
+        try:
+            new_email = validate_email(args.new_email)
+        except ValueError as error:
+            print(f"Error: {error}", file=sys.stderr)
             return 1
         existing = await context.members.by_email(new_email)
         if existing is not None and existing["_id"] != member["_id"]:
