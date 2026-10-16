@@ -50,6 +50,30 @@ def _set_image_headers(
         response.headers["Last-Modified"] = last_modified
 
 
+def _not_modified_response(etag: str, registry: dict[str, Any]) -> WerkzeugResponse:
+    """The 304 reply for a matching ETag (§10.4)."""
+    response = WerkzeugResponse("", status=304)
+    _set_image_headers(response, etag, registry)
+    return response
+
+
+def _conversion_target(extension: str) -> str:
+    """The legacy conversion format for an extension, or ``""`` for WebP."""
+    if extension == "webp":
+        return ""
+    return "jpg" if extension in ("jpg", "jpeg") else "png"
+
+
+def _image_response(
+    payload: bytes, etag: str, registry: dict[str, Any], content_type: str
+) -> WerkzeugResponse:
+    """The 200 image reply with shared cache headers (§10.4)."""
+    response = WerkzeugResponse(payload)
+    response.headers["Content-Type"] = content_type
+    _set_image_headers(response, etag, registry)
+    return response
+
+
 def create_images_blueprint(context: AppContext) -> Blueprint:
     blueprint = Blueprint("images", __name__)
 
@@ -129,17 +153,13 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
             _abort(404)
         etag = registry["md5"]
         if request.if_none_match and etag in request.if_none_match:
-            response = WerkzeugResponse("", status=304)
-            _set_image_headers(response, etag, registry)
-            return response
+            return _not_modified_response(etag, registry)
 
         payload = await context.objects.data(object_id)
         if payload is None:
             _abort(404)
-        target = ""
         content_type = _content_type_for(extension)
-        if extension != "webp":
-            target = "jpg" if extension in ("jpg", "jpeg") else "png"
+        target = _conversion_target(extension)
         if target:
             if len(payload) <= _CONVERSION_CAP:
                 payload = await context.run_image(
@@ -147,11 +167,7 @@ def create_images_blueprint(context: AppContext) -> Blueprint:
                 )
             else:
                 content_type = "image/webp"
-
-        response = WerkzeugResponse(payload)
-        response.headers["Content-Type"] = content_type
-        _set_image_headers(response, etag, registry)
-        return response
+        return _image_response(payload, etag, registry, content_type)
 
     @blueprint.route("/images/<hexid:object_id>/alt", methods=["POST"])
     async def set_alt_text(object_id: str) -> WerkzeugResponse:

@@ -22,6 +22,7 @@ from .blueprints.paging import parse_page_number
 from .blueprints.profile import create_profile_blueprint
 from .blueprints.seo import canonical_url_for, create_seo_blueprint, jsonld_document
 from .context import AppContext
+from .repositories.documents import MemberDocument
 from .security.csrf import new_csrf_token, tokens_match
 from .security.headers import security_headers
 from .security.proxy import ProxyTrust, forwarded_base, forwarded_client
@@ -156,6 +157,136 @@ def _is_home_page() -> bool:
     return request.path == "/" and request.method == "GET"
 
 
+async def _resolve_session_member(context: AppContext) -> None:
+    """Resolve the session cookie into ``g.member``/``g.session`` (§4.3)."""
+    raw_cookie = request.cookies.get(_COOKIE_NAME)
+    session = context.codec.load(raw_cookie) if raw_cookie else None
+    g.session = session
+    member: MemberDocument | None = None
+    if session is not None:
+        member = await context.members.by_id(session.member_id)
+        if member is not None and (
+            not member["active"]
+            or member.get("session_version", 1) != session.session_version
+        ):
+            member = None
+    g.member = member
+    if member is None and session is not None:
+        g.destroy_session_cookie = True
+        g.session = None
+
+
+def _ensure_csrf_token() -> None:
+    """Mint the anonymous double-submit CSRF cookie when needed."""
+    session = getattr(g, "session", None)
+    if session is not None:
+        g.csrf_token = session.csrf_token
+        return
+    anon_csrf = request.cookies.get(_CSRF_COOKIE_NAME)
+    if not anon_csrf:
+        anon_csrf = new_csrf_token()
+        g.set_anon_csrf_cookie = anon_csrf
+    g.csrf_token = anon_csrf
+
+
+async def _enforce_csrf_token() -> None:
+    """Abort mutating requests with a mismatched CSRF token (§15.2)."""
+    if request.method not in _MUTATING_METHODS:
+        return
+    form = await request.form
+    candidate = form.get("csrftoken", "") or request.headers.get("X-CSRFToken", "")
+    if not tokens_match(candidate, g.csrf_token):
+        abort(403)
+
+
+async def _try_cached_home(
+    context: AppContext, cache: ResponseCache
+) -> Response | None:
+    """Serve the cached anonymous home page when fresh (§14)."""
+    if not (cache.active() and g.member is None and _is_home_page()):
+        return None
+    version = await context.meta.content_version()
+    hit = await cache.get(_cache_key(context.config.posts.per_page), version)
+    if hit is None:
+        return None
+    cached_html, cached_nonce = hit
+    g.csp_nonce = cached_nonce
+    return Response(cached_html, content_type="text/html; charset=utf-8")
+
+
+def _apply_session_cookie(
+    response: Response, context: AppContext, *, secure: bool
+) -> None:
+    """Write the sliding session cookie and its cache policy (§4.3)."""
+    session = getattr(g, "session", None)
+    member = getattr(g, "member", None)
+    if getattr(g, "set_session_cookie", None):
+        _set_session_cookie(response, g.set_session_cookie, secure=secure)
+        response.delete_cookie(_CSRF_COOKIE_NAME)
+        if "text/html" in response.headers.get("Content-Type", ""):
+            response.headers["Cache-Control"] = "no-store"
+    elif member is not None and session is not None:
+        _set_session_cookie(response, context.auth.refresh(session), secure=secure)
+        response.delete_cookie(_CSRF_COOKIE_NAME)
+        if "text/html" in response.headers.get("Content-Type", ""):
+            response.headers["Cache-Control"] = "no-store"
+
+
+def _apply_anon_csrf_cookie(response: Response, *, secure: bool) -> None:
+    """Persist the anonymous CSRF cookie for logged-out forms."""
+    if (
+        getattr(g, "set_anon_csrf_cookie", None)
+        and getattr(g, "session", None) is None
+        and not getattr(g, "set_session_cookie", None)
+    ):
+        response.set_cookie(
+            _CSRF_COOKIE_NAME,
+            g.set_anon_csrf_cookie,
+            max_age=_COOKIE_MAX_AGE,
+            httponly=True,
+            samesite="Lax",
+            secure=secure,
+        )
+
+
+def _apply_cache_policy(response: Response) -> None:
+    """Static cache directives for search, tag, and font responses."""
+    if request.path.startswith("/search") or request.path.startswith("/tag/"):
+        response.headers["Cache-Control"] = "no-cache"
+    if request.path.startswith("/static/fonts/") or request.path == "/static/fonts.css":
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+
+
+async def _store_home_cache(
+    response: Response,
+    context: AppContext,
+    cache: ResponseCache,
+    *,
+    nonce: str | None,
+) -> None:
+    """Cache the freshly rendered anonymous home page (§14)."""
+    member = getattr(g, "member", None)
+    if not (
+        cache.active()
+        and member is None
+        and _is_home_page()
+        and response.status_code == 200
+        and "text/html" in response.headers.get("Content-Type", "")
+    ):
+        return
+    body = await response.get_data()
+    rendered = body.decode("utf-8") if isinstance(body, bytes) else body
+    minified = minify_html(rendered)
+    version = await context.meta.content_version()
+    await cache.put(
+        _cache_key(context.config.posts.per_page),
+        minified,
+        version,
+        nonce=nonce or "",
+    )
+    response.set_data(minified)
+
+
 def assemble(app: Quart, context: AppContext) -> None:
     """Register blueprints and wire the request lifecycle onto ``app``."""
     app.extensions[_CONTEXT_KEY] = context
@@ -253,47 +384,10 @@ def assemble(app: Quart, context: AppContext) -> None:
         g.csp_nonce = secrets.token_hex(16)
         await context.database.start()
         await ensure_theme_banners(context)
-        raw_cookie = request.cookies.get(_COOKIE_NAME)
-        session = context.codec.load(raw_cookie) if raw_cookie else None
-        g.session = session
-        member = None
-        if session is not None:
-            member = await context.members.by_id(session.member_id)
-            if member is not None and (
-                not member["active"]
-                or member.get("session_version", 1) != session.session_version
-            ):
-                member = None
-        g.member = member
-        if member is None and session is not None:
-            g.destroy_session_cookie = True
-            g.session = None
-            session = None
-        if session is not None:
-            g.csrf_token = session.csrf_token
-        else:
-            anon_csrf = request.cookies.get(_CSRF_COOKIE_NAME)
-            if not anon_csrf:
-                anon_csrf = new_csrf_token()
-                g.set_anon_csrf_cookie = anon_csrf
-            g.csrf_token = anon_csrf
-
-        if request.method in _MUTATING_METHODS:
-            form = await request.form
-            candidate = form.get("csrftoken", "") or request.headers.get(
-                "X-CSRFToken", ""
-            )
-            expected = g.csrf_token
-            if not tokens_match(candidate, expected):
-                abort(403)
-        if cache.active() and member is None and _is_home_page():
-            version = await context.meta.content_version()
-            hit = await cache.get(_cache_key(context.config.posts.per_page), version)
-            if hit is not None:
-                cached_html, cached_nonce = hit
-                g.csp_nonce = cached_nonce
-                return Response(cached_html, content_type="text/html; charset=utf-8")
-        return None
+        await _resolve_session_member(context)
+        _ensure_csrf_token()
+        await _enforce_csrf_token()
+        return await _try_cached_home(context, cache)
 
     @app.context_processor
     def _template_globals() -> dict[str, Any]:
@@ -339,8 +433,6 @@ def assemble(app: Quart, context: AppContext) -> None:
         nonce = getattr(g, "csp_nonce", None)
         for name, value in security_headers(https=secure, nonce=nonce).items():
             response.headers[name] = value
-        session = getattr(g, "session", None)
-        member = getattr(g, "member", None)
         if getattr(g, "destroy_session_cookie", False):
             response.delete_cookie(_COOKIE_NAME)
         if getattr(g, "clear_response_cache", False):
@@ -348,52 +440,9 @@ def assemble(app: Quart, context: AppContext) -> None:
             # hygiene above only drops the cookie: a disabled account's
             # leftover cookie must not evict cached pages for everyone.
             await cache.clear()
-        elif getattr(g, "set_session_cookie", None):
-            _set_session_cookie(response, g.set_session_cookie, secure=secure)
-            response.delete_cookie(_CSRF_COOKIE_NAME)
-            if "text/html" in response.headers.get("Content-Type", ""):
-                response.headers["Cache-Control"] = "no-store"
-        elif member is not None and session is not None:
-            _set_session_cookie(response, context.auth.refresh(session), secure=secure)
-            response.delete_cookie(_CSRF_COOKIE_NAME)
-            if "text/html" in response.headers.get("Content-Type", ""):
-                response.headers["Cache-Control"] = "no-store"
-        if (
-            getattr(g, "set_anon_csrf_cookie", None)
-            and session is None
-            and not getattr(g, "set_session_cookie", None)
-        ):
-            response.set_cookie(
-                _CSRF_COOKIE_NAME,
-                g.set_anon_csrf_cookie,
-                max_age=_COOKIE_MAX_AGE,
-                httponly=True,
-                samesite="Lax",
-                secure=secure,
-            )
-        if request.path.startswith("/search") or request.path.startswith("/tag/"):
-            response.headers["Cache-Control"] = "no-cache"
-        if (
-            request.path.startswith("/static/fonts/")
-            or request.path == "/static/fonts.css"
-        ):
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-        if (
-            cache.active()
-            and member is None
-            and _is_home_page()
-            and response.status_code == 200
-            and "text/html" in response.headers.get("Content-Type", "")
-        ):
-            body = await response.get_data()
-            rendered = body.decode("utf-8") if isinstance(body, bytes) else body
-            minified = minify_html(rendered)
-            version = await context.meta.content_version()
-            await cache.put(
-                _cache_key(context.config.posts.per_page),
-                minified,
-                version,
-                nonce=nonce or "",
-            )
-            response.set_data(minified)
+        else:
+            _apply_session_cookie(response, context, secure=secure)
+        _apply_anon_csrf_cookie(response, secure=secure)
+        _apply_cache_policy(response)
+        await _store_home_cache(response, context, cache, nonce=nonce)
         return response

@@ -1,17 +1,54 @@
 """Auth pages: registration, sign-in, sign-out, recovery (spec §4)."""
 
+from typing import Any
+
 from quart import Blueprint, flash, redirect, render_template, request
 from werkzeug.wrappers import Response
 
 from ..context import AppContext
-from ..services.accounts import (
-    SECURITY_QUESTION_LABELS as QUESTION_LABELS,
-)
-from ..services.accounts import (
-    AccountDisabledError,
-)
+from ..services.accounts import SECURITY_QUESTION_LABELS as QUESTION_LABELS
+from ..services.accounts import AccountDisabledError
 
 __all__ = ["create_auth_blueprint"]
+
+
+async def _find_recovery_member(
+    context: AppContext, email: str
+) -> tuple[Any | None, str | None]:
+    """Look up the recovery member; returns (member, error-flash)."""
+    member = await context.members.by_email(email)
+    if member is None:
+        return None, "No account found with that email address."
+    if not member["active"]:
+        return (
+            None,
+            "This account is disabled. Please contact an administrator.",
+        )
+    return member, None
+
+
+async def _verify_recovery_answer(
+    context: AppContext, email: str, answer: str, new_password: str
+) -> tuple[str | None, str, str]:
+    """Verify the answer; returns (redirect-to, flash-text, category).
+
+    An empty redirect-to means re-render the recovery page (wrong answer).
+    """
+    if not answer.strip():
+        return "/recover", "Answer is required", "error"
+    if len(new_password) < 8:
+        return "/recover", "New password is required", "error"
+    try:
+        ok = await context.accounts.recover(email, answer, new_password)
+    except AccountDisabledError:
+        return (
+            "/recover",
+            "This account is disabled. Please contact an administrator.",
+            "error",
+        )
+    if ok:
+        return "/signin", "Password reset. You can now sign in.", "success"
+    return "", "The answer did not match. Try again.", "error"
 
 
 def create_auth_blueprint(context: AppContext) -> Blueprint:
@@ -120,38 +157,22 @@ def create_auth_blueprint(context: AppContext) -> Blueprint:
             ):
                 await flash("Too many attempts. Try again later.", "error")
                 return redirect("/recover")
-            member = await context.members.by_email(email)
+            member, lookup_error = await _find_recovery_member(context, email)
             if member is None:
-                await flash("No account found with that email address.", "error")
-                return redirect("/recover")
-            if not member["active"]:
-                await flash(
-                    "This account is disabled. Please contact an administrator.",
-                    "error",
-                )
+                assert lookup_error is not None
+                await flash(lookup_error, "error")
                 return redirect("/recover")
             question = QUESTION_LABELS.get(member["security_question_code"])
             if verify:
-                if not form.get("answer", "").strip():
-                    await flash("Answer is required", "error")
-                    return redirect("/recover")
-                if len(form.get("new_password", "")) < 8:
-                    await flash("New password is required", "error")
-                    return redirect("/recover")
-                try:
-                    ok = await context.accounts.recover(
-                        email, form.get("answer", ""), form.get("new_password", "")
-                    )
-                except AccountDisabledError:
-                    await flash(
-                        "This account is disabled. Please contact an administrator.",
-                        "error",
-                    )
-                    return redirect("/recover")
-                if ok:
-                    await flash("Password reset. You can now sign in.", "success")
-                    return redirect("/signin")
-                await flash("The answer did not match. Try again.", "error")
+                target, message, category = await _verify_recovery_answer(
+                    context,
+                    email,
+                    form.get("answer", ""),
+                    form.get("new_password", ""),
+                )
+                await flash(message, category)
+                if target:
+                    return redirect(target)
         return await render_template("recovery.html", email=email, question=question)
 
     return blueprint

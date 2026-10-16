@@ -5,29 +5,47 @@ author-visibility snapshots and clear the response cache (§11.2, §14).
 """
 
 import asyncio
+import functools
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from quart import Blueprint, flash, g, redirect, render_template, request
 from werkzeug.wrappers import Response
 
 from ..context import AppContext
+from ..repositories.documents import MemberDocument
 
 __all__ = ["create_admin_blueprint"]
+
+
+def _admin_required(
+    view: Callable[..., Awaitable[Any]],
+) -> Callable[..., Awaitable[Any]]:
+    """Refuse non-administrators with the standard flash + redirect (§11)."""
+
+    @functools.wraps(view)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        if g.member is None or not g.member["administrator"]:
+            await flash("Administrators only.", "error")
+            return redirect("/")
+        return await view(*args, **kwargs)
+
+    return wrapper
 
 
 def create_admin_blueprint(context: AppContext) -> Blueprint:
     blueprint = Blueprint("admin", __name__)
 
-    async def _guard() -> Response | None:
-        if g.member is None or not g.member["administrator"]:
-            await flash("Administrators only.", "error")
-            return redirect("/")
-        return None
+    async def _load_member(member_id: str) -> MemberDocument | None:
+        """Fetch a member, flashing when missing (§11.2)."""
+        target = await context.members.by_id(member_id)
+        if target is None:
+            await flash("No such member.", "error")
+        return target
 
     @blueprint.route("/admin")
+    @_admin_required
     async def dashboard() -> str | Response:
-        refused = await _guard()
-        if refused is not None:
-            return refused
         member_stats: dict[str, int] = {}
         article_stats: dict[str, int] = {}
         comments_total = 0
@@ -65,10 +83,8 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
         )
 
     @blueprint.route("/admin/unpublished")
+    @_admin_required
     async def review() -> str | Response:
-        refused = await _guard()
-        if refused is not None:
-            return refused
         rows = await context.articles.unpublished_review()
         g.breadcrumbs = [
             ("Home", "/"),
@@ -79,14 +95,11 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
 
     @blueprint.route("/admin/members/<hexid:member_id>/disable", methods=["POST"])
     @blueprint.route("/admin/members/<hexid:member_id>/enable", methods=["POST"])
+    @_admin_required
     async def toggle_active(member_id: str) -> Response:
-        refused = await _guard()
-        if refused is not None:
-            return refused
         disable = request.path.endswith("/disable")
-        target = await context.members.by_id(member_id)
+        target = await _load_member(member_id)
         if target is None:
-            await flash("No such member.", "error")
             return redirect("/admin")
         if disable and target["administrator"]:
             await flash("An administrator can never be disabled.", "error")
@@ -99,13 +112,10 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
         return redirect("/admin")
 
     @blueprint.route("/admin/members/<hexid:member_id>/promote", methods=["POST"])
+    @_admin_required
     async def promote(member_id: str) -> Response:
-        refused = await _guard()
-        if refused is not None:
-            return refused
-        target = await context.members.by_id(member_id)
+        target = await _load_member(member_id)
         if target is None:
-            await flash("No such member.", "error")
             return redirect("/admin")
         await context.members.set_administrator(member_id, True)
         await context.visibility.resync_author_articles(target)
@@ -114,13 +124,10 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
         return redirect("/admin")
 
     @blueprint.route("/admin/members/<hexid:member_id>/publisher", methods=["POST"])
+    @_admin_required
     async def toggle_publisher(member_id: str) -> Response:
-        refused = await _guard()
-        if refused is not None:
-            return refused
-        target = await context.members.by_id(member_id)
+        target = await _load_member(member_id)
         if target is None:
-            await flash("No such member.", "error")
             return redirect("/admin")
         granted = not target["publisher"]
         if not granted and target["administrator"]:
@@ -139,10 +146,8 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
         return redirect("/admin")
 
     @blueprint.route("/admin/reindex", methods=["POST"])
+    @_admin_required
     async def reindex() -> Response:
-        refused = await _guard()
-        if refused is not None:
-            return refused
         await context.articles.rebuild_search_indexes()
         await flash("Search indexes rebuilt.", "success")
         return redirect("/admin")

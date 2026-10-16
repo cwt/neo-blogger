@@ -8,7 +8,7 @@ from werkzeug.routing import BaseConverter
 from werkzeug.wrappers import Response as WerkzeugResponse
 
 from ..context import AppContext
-from ..repositories.documents import MemberDocument
+from ..repositories.documents import ArticleDocument, MemberDocument
 from ..security.proxy import forwarded_base
 from ..services.articles import CoverRequiredError
 from ..services.objects import derive_description, legacy_url
@@ -47,6 +47,51 @@ class HexIdConverter(BaseConverter):
     """Matches opaque hex document ids (identifier-based URLs, §19)."""
 
     regex = "[0-9a-f]{24}"
+
+
+async def _load_editable_article(
+    context: AppContext, member: MemberDocument, article_id: str | None
+) -> ArticleDocument | None:
+    """The article being edited, or ``None`` when missing/forbidden (§5)."""
+    if article_id is None:
+        return None
+    article = await context.articles.by_id(article_id)
+    if article is None or not context.visibility.can_edit(member, article):
+        return None
+    return article
+
+
+async def _handle_write_post(
+    context: AppContext, member: MemberDocument, article_id: str | None
+) -> WerkzeugResponse:
+    """Persist the editor POST; returns the follow-up redirect (§5.1)."""
+    form = await request.form
+    publish = form.get("action") == "publish"
+    try:
+        saved_id = await context.article_service.save(
+            member,
+            article_id=article_id,
+            title=form.get("title", "").strip(),
+            subtitle=form.get("subtitle", "").strip(),
+            body=form.get("body", ""),
+            cover_url=form.get("cover_url", "").strip(),
+            tags_raw=form.get("tags", ""),
+            publish=publish,
+        )
+    except CoverRequiredError:
+        await flash("A cover image is required to publish.", "error")
+        return redirect(f"/write/{article_id}" if article_id else "/write")
+    except Exception as error:
+        _logger.error("Failed to save article: %s", error, exc_info=True)
+        await flash("Failed to save article. Please try again.", "error")
+        edit_target = f"/write/{article_id}" if article_id else "/write"
+        return redirect(edit_target)
+    await flash("Saved.", "success")
+    if publish:
+        if article_id is None:
+            return redirect("/")
+        return redirect(f"/{saved_id}")
+    return redirect("/profile")
 
 
 def create_blog_blueprint(context: AppContext) -> Blueprint:
@@ -94,40 +139,14 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
         if g.member is None:
             await flash("Sign in to write.", "error")
             return redirect("/signin")
-        article = None
+        article: ArticleDocument | None = None
         if article_id is not None:
-            article = await context.articles.by_id(article_id)
-            if article is None or not context.visibility.can_edit(g.member, article):
+            article = await _load_editable_article(context, g.member, article_id)
+            if article is None:
                 await flash("You cannot edit that article.", "error")
                 return redirect("/profile")
         if request.method == "POST":
-            form = await request.form
-            publish = form.get("action") == "publish"
-            try:
-                saved_id = await context.article_service.save(
-                    g.member,
-                    article_id=article_id,
-                    title=form.get("title", "").strip(),
-                    subtitle=form.get("subtitle", "").strip(),
-                    body=form.get("body", ""),
-                    cover_url=form.get("cover_url", "").strip(),
-                    tags_raw=form.get("tags", ""),
-                    publish=publish,
-                )
-            except CoverRequiredError:
-                await flash("A cover image is required to publish.", "error")
-                return redirect(f"/write/{article_id}" if article_id else "/write")
-            except Exception as error:
-                _logger.error("Failed to save article: %s", error, exc_info=True)
-                await flash("Failed to save article. Please try again.", "error")
-                edit_target = f"/write/{article_id}" if article_id else "/write"
-                return redirect(edit_target)
-            await flash("Saved.", "success")
-            if publish:
-                if article_id is None:
-                    return redirect("/")
-                return redirect(f"/{saved_id}")
-            return redirect("/profile")
+            return await _handle_write_post(context, g.member, article_id)
         g.breadcrumbs = [("Home", "/"), ("Write", "/write")]
         owner = None if g.member["administrator"] else g.member["display_name"]
         cover_images, _total = await context.objects.list_for(
