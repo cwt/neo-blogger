@@ -23,7 +23,6 @@ import sys
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -31,14 +30,17 @@ from PIL import Image
 
 from ..app.config import load_config
 from ..app.context import AppContext
-from ..app.services.theme import THEME_BANNER_KEY, THEME_OWNER
+from ..app.services.theme import (
+    THEME_BANNER_KEY,
+    THEME_OWNER,
+    list_theme_banners,
+)
+from ..app.services.timestamps import now_iso as _shared_now_iso
 
 __all__ = [
-    "API_ENDPOINT",
     "BANNERS",
     "DEFAULT_API_ENDPOINT",
     "DEFAULT_MODEL",
-    "MODEL",
     "RATIO",
     "SIZE",
     "build_parser",
@@ -53,8 +55,6 @@ __all__ = [
 
 DEFAULT_API_ENDPOINT = "https://apihub.agnes-ai.com/v1/images/generations"
 DEFAULT_MODEL = "agnes-image-2.5-flash"
-API_ENDPOINT = DEFAULT_API_ENDPOINT
-MODEL = DEFAULT_MODEL
 SIZE = "1K"
 RATIO = "21:9"
 REQUEST_TIMEOUT_SECONDS = 180
@@ -237,7 +237,7 @@ def _generation_payload(name: str, *, model: str = DEFAULT_MODEL) -> dict[str, A
 
 
 async def _existing_banners(context: AppContext) -> set[str]:
-    rows, _total = await context.objects.list_for(THEME_OWNER, 1, 50)
+    rows, _total = await list_theme_banners(context.objects)
     return {
         str(row["metadata"].get(THEME_BANNER_KEY, ""))
         for row in rows
@@ -246,14 +246,14 @@ async def _existing_banners(context: AppContext) -> set[str]:
 
 
 async def _clear_theme(context: AppContext) -> int:
-    rows, _total = await context.objects.list_for(THEME_OWNER, 1, 50)
+    rows, _total = await list_theme_banners(context.objects)
     for row in rows:
         await context.objects.delete(str(row["id"]))
     return len(rows)
 
 
 def _now_iso() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
+    return _shared_now_iso()
 
 
 async def run(

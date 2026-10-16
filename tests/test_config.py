@@ -140,6 +140,9 @@ def test_production_accepts_strong_secret(tmp_path: Path) -> None:
 
 
 def test_base_url_trailing_slash_normalized() -> None:
+    from neoblogger.app.blueprints.seo import canonical_url_for
+
     config = RuntimeConfig(application=ApplicationConfig(base_url="https://x.io"))
-    assert config.resolve_base_url() == "https://x.io/"
-    assert RuntimeConfig().resolve_base_url() == "/"
+    assert canonical_url_for(config.application.base_url, "http://x/", "/") == (
+        "https://x.io/"
+    )

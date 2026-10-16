@@ -33,43 +33,6 @@ class MemberRepository:
     def __init__(self, database: Database) -> None:
         self._database = database
 
-    async def create(
-        self,
-        display_name: str,
-        email: str,
-        password_hash: str,
-        security_question_code: str,
-        security_answer_hash: str,
-        *,
-        administrator: bool = False,
-        publisher: bool = False,
-    ) -> str:
-        """Insert a member; hex-string ``_id`` is returned (spec §4.1)."""
-
-        def insert() -> str:
-            members = self._database.connection.members
-            if members.find_one({"email": email}) is not None:
-                raise MemberAlreadyExistsError("email already registered")
-            result = members.insert_one(
-                {
-                    "display_name": display_name,
-                    "email": email,
-                    "password_hash": password_hash,
-                    "security_question_code": security_question_code,
-                    "security_answer_hash": security_answer_hash,
-                    "active": True,
-                    "administrator": administrator,
-                    "publisher": publisher,
-                    "session_version": 1,
-                }
-            )
-            return str(result.inserted_id)
-
-        try:
-            return await self._database.run(insert)
-        except sqlite3.IntegrityError as error:
-            raise MemberAlreadyExistsError(str(error)) from error
-
     async def create_first_or_member(
         self,
         display_name: str,
@@ -142,12 +105,6 @@ class MemberRepository:
             return _normalize(document) if document is not None else None
 
         return await self._database.run(find)
-
-    async def exists_any(self) -> bool:
-        def count() -> bool:
-            return int(self._database.connection.members.count_documents({})) > 0
-
-        return await self._database.run(count)
 
     async def dashboard(self) -> dict[str, int]:
         """Member statistics in one round trip (spec §11.1)."""

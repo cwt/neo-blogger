@@ -3,11 +3,7 @@
 from ..security.csrf import new_csrf_token
 from ..security.sessions import SessionCodec, SessionData
 
-__all__ = ["AuthError", "AuthService"]
-
-
-class AuthError(Exception):
-    """An authentication flow failure with a user-facing message."""
+__all__ = ["AuthService"]
 
 
 class AuthService:
@@ -29,12 +25,6 @@ class AuthService:
             )
         )
         return cookie, token
-
-    def resolve(self, cookie: str | None) -> SessionData | None:
-        """Resolve a session cookie; ``None`` when absent or invalid."""
-        if not cookie:
-            return None
-        return self._codec.load(cookie)
 
     def refresh(self, session: SessionData) -> str:
         """Re-sign the payload for sliding expiry (spec §4.3)."""

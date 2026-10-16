@@ -148,13 +148,6 @@ class RuntimeConfig(BaseModel):
     uploads: UploadConfig = Field(default_factory=UploadConfig)
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
 
-    def resolve_base_url(self) -> str:
-        """Normalize ``base_url`` to end with exactly one trailing slash."""
-        base = self.application.base_url.strip()
-        if not base:
-            return "/"
-        return f"{base.rstrip('/')}/"
-
 
 def _read_toml(config_path: str) -> dict[str, Any]:
     """Read and parse a TOML file, translating load errors to faults."""

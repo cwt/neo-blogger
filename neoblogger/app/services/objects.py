@@ -20,6 +20,7 @@ from ..repositories.articles import ArticleRepository
 from ..repositories.documents import ArticleDocument, MemberDocument
 from ..repositories.objects import ObjectRepository
 from .theme import THEME_OWNER
+from .timestamps import now_iso
 
 __all__ = ["ImageRejectedError", "ObjectsService"]
 
@@ -27,7 +28,6 @@ _ALLOWED_EXTENSIONS = frozenset({"jpg", "jpeg", "png", "webp", "gif"})
 _SANITIZER = re.compile(r"[^a-z0-9_-]+")
 
 type ImageRunner = Callable[[Callable[[], Any]], Any]
-_LEGACY_EXTENSIONS = frozenset({"jpg", "jpeg", "png"})
 
 
 class ImageRejectedError(Exception):
@@ -147,7 +147,7 @@ class ObjectsService:
         if not webp_payload:
             raise ImageRejectedError("the file does not decode as an image")
         name = stored_filename(member["display_name"], original)
-        now = datetime.datetime.now().isoformat(timespec="seconds")
+        now = now_iso()
         return await self._objects.upload(
             name,
             webp_payload,

@@ -43,7 +43,7 @@ def credentials(name: str) -> dict[str, str]:
 
 async def test_member_create_returns_hex_id(members: MemberRepository) -> None:
     creds = credentials("alice")
-    member_id = await members.create(
+    member_id, _ = await members.create_first_or_member(
         "alice",
         creds["email"],
         creds["password_hash"],
@@ -56,16 +56,18 @@ async def test_member_create_returns_hex_id(members: MemberRepository) -> None:
 
 async def test_member_duplicate_display_name(members: MemberRepository) -> None:
     creds = credentials("alice")
-    await members.create(
+    await members.create_first_or_member(
         "alice", creds["email"], creds["password_hash"], "first-pet", "answer"
     )
     with pytest.raises(MemberAlreadyExistsError):
-        await members.create("alice", "other@example.com", "h", "first-pet", "a")
+        await members.create_first_or_member(
+            "alice", "other@example.com", "h", "first-pet", "a"
+        )
 
 
 async def test_member_lookup_paths(members: MemberRepository) -> None:
     creds = credentials("bob")
-    member_id = await members.create(
+    member_id, _ = await members.create_first_or_member(
         "bob", creds["email"], creds["password_hash"], "first-pet", "answer"
     )
     by_id = await members.by_id(member_id)
@@ -82,7 +84,9 @@ async def test_member_lookup_paths(members: MemberRepository) -> None:
 
 
 async def test_member_flag_toggles(members: MemberRepository) -> None:
-    member_id = await members.create("carol", "c@x.io", "h", "first-pet", "a")
+    member_id, _ = await members.create_first_or_member(
+        "carol", "c@x.io", "h", "first-pet", "a"
+    )
     await members.set_publisher(member_id, True)
     publisher = await members.by_id(member_id)
     assert publisher is not None
@@ -94,13 +98,17 @@ async def test_member_flag_toggles(members: MemberRepository) -> None:
 
 
 async def test_member_flag_validation(members: MemberRepository) -> None:
-    member_id = await members.create("dave", "d@x.io", "h", "first-pet", "a")
+    member_id, _ = await members.create_first_or_member(
+        "dave", "d@x.io", "h", "first-pet", "a"
+    )
     with pytest.raises(ValueError):
         await members.set_flag(member_id, "email", True)
 
 
 async def test_member_credential_rotation(members: MemberRepository) -> None:
-    member_id = await members.create("erin", "e@x.io", "h1", "first-pet", "a1")
+    member_id, _ = await members.create_first_or_member(
+        "erin", "e@x.io", "h1", "first-pet", "a1"
+    )
     await members.update_credentials(
         member_id,
         email="erin2@x.io",
@@ -117,10 +125,12 @@ async def test_member_credential_rotation(members: MemberRepository) -> None:
 
 
 async def test_member_all_and_exists(members: MemberRepository) -> None:
-    assert await members.exists_any() is False
+    assert await members.all() == []
     for name in ("frank", "grace"):
-        await members.create(name, f"{name}@x.io", "h", "first-pet", "a")
-    assert await members.exists_any() is True
+        await members.create_first_or_member(
+            name, f"{name}@x.io", "h", "first-pet", "a"
+        )
+    assert len(await members.all()) == 2
     roster = await members.all()
     assert [member["display_name"] for member in roster] == ["grace", "frank"]
 

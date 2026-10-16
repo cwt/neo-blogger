@@ -163,8 +163,6 @@ if (bodyField && typeof EasyMDE !== "undefined") {
   editor.codemirror.on("change", () => {
     editor.codemirror.save();
   });
-} else if (bodyField) {
-  // Progressive enhancement fallback: the plain textarea still works.
 }
 
 // Cover picker on the editor page (spec §5.1): choosing an uploaded
