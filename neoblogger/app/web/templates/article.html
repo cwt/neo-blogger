@@ -7,10 +7,17 @@
 {% block head %}
   {% if article.cover_url %}<link rel="preload" as="image" href="{{ article.cover_url }}" fetchpriority="high">{% endif %}
   <link rel="stylesheet" href="/static/pygments.css">
+{# Open Graph + Twitter Cards (§16): absolute image URL resolved in blog.py. #}
   <meta property="og:type" content="article">
   <meta property="og:title" content="{{ article.title }}">
   <meta property="og:description" content="{{ g.article.description }}">
-  {% if g.article.image %}<meta property="og:image" content="{{ g.article.image }}">{% endif %}
+  <meta property="og:url" content="{{ canonical_url }}">
+  <meta property="og:site_name" content="{{ site_title }}">
+  {% if g.article.image %}<meta property="og:image" content="{{ g.article.image }}">
+  <meta property="og:image:alt" content="{{ article.title }}">{% endif %}
+  <meta name="twitter:card" content="{% if g.article.image %}summary_large_image{% else %}summary{% endif %}">
+  <meta name="twitter:title" content="{{ article.title }}">
+  <meta name="twitter:description" content="{{ g.article.description }}">
   <meta property="article:published_time" content="{{ article.created }}">
   {% if article.tags %}<meta name="keywords" content="{{ article.tags | join(', ') }}">{% endif %}
   {% for tag in article.tags %}<meta property="article:tag" content="{{ tag }}">{% endfor %}
@@ -29,7 +36,7 @@
     </figcaption>
   </figure>
   {% endif %}
-  <p class="meta">Posted by {{ article.author }} on {{ article.created | readable_date }}</p>
+  <p class="meta">Posted by {{ article.author }} on <time datetime="{{ article.created }}">{{ article.created | readable_date }}</time></p>
   <p class="meta">{% for tag in article.tags %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}</p>
 </header>
 <section class="article-body">{{ rendered_body | safe }}</section>

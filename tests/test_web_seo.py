@@ -160,6 +160,70 @@ async def test_article_metadata_and_jsonld(app: Any) -> None:
     assert '<meta property="og:image" content="http' in rendered
 
 
+async def test_article_social_and_structured_metadata(app: Any) -> None:
+    root_client = await signup(app, "root")
+    article_id = await write_article(
+        app, root_client, title="Social rich", publish=True, cover="https://x.io/c.webp"
+    )
+    rendered = await body_of(await root_client.get(f"/{article_id}"))
+    assert '<meta property="og:url" content="http' in rendered
+    assert '<meta property="og:site_name"' in rendered
+    assert '<meta name="twitter:card" content="summary_large_image">' in rendered
+    assert '<meta name="twitter:title" content="Social rich">' in rendered
+    assert '<meta property="og:image:alt" content="Social rich">' in rendered
+    assert '"mainEntityOfPage"' in rendered
+    assert '"speakable"' in rendered
+    assert "<time datetime=" in rendered
+
+
+async def test_global_head_hygiene(app: Any) -> None:
+    rendered = await body_of(await app.test_client().get("/"))
+    assert '<meta name="theme-color"' in rendered
+    assert 'href="#content"' in rendered
+    assert 'id="content"' in rendered
+    assert '<a href="/feed.xml">Feed</a>' in rendered
+
+
+async def test_thin_pages_opt_out_of_indexing(app: Any) -> None:
+    client = app.test_client()
+    for path in ("/search?q=x", "/signup", "/signin", "/recover"):
+        rendered = await body_of(await client.get(path))
+        assert '<meta name="robots" content="noindex, follow">' in rendered
+    home = await body_of(await client.get("/"))
+    assert "noindex" not in home
+
+
+async def test_atom_feed_lists_public_articles(app: Any) -> None:
+    root_client = await signup(app, "root")
+    await write_article(
+        app, root_client, title="Feed piece", publish=True, cover="https://x.io/c.webp"
+    )
+    await write_article(app, root_client, title="Feed draft", publish=False)
+    response = await app.test_client().get("/feed.xml")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("application/atom+xml")
+    document = await body_of(response)
+    assert "<feed" in document
+    assert "Feed piece" in document
+    assert "Feed draft" not in document
+    assert "<updated>" in document
+
+
+async def test_llms_txt_lists_site_and_articles(app: Any) -> None:
+    root_client = await signup(app, "root")
+    await write_article(
+        app, root_client, title="LLM piece", publish=True, cover="https://x.io/c.webp"
+    )
+    response = await app.test_client().get("/llms.txt")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("text/plain")
+    document = await body_of(response)
+    assert document.startswith("# ")
+    assert "LLM piece" in document
+    assert "/feed.xml" in document
+    assert "/sitemap.xml" in document
+
+
 async def test_readable_dates_rendered(app: Any) -> None:
     root_client = await signup(app, "root")
     article_id = await write_article(
@@ -169,7 +233,9 @@ async def test_readable_dates_rendered(app: Any) -> None:
     assert "on" in rendered
     import re
 
-    match = re.search(r"on ([A-Z][a-z]+ \d{2}, \d{4})", rendered)
+    match = re.search(
+        r"<time datetime=\"([^\"]+)\">([A-Z][a-z]+ \d{2}, \d{4})", rendered
+    )
     assert match is not None
 
 

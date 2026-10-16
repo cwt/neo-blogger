@@ -11,6 +11,7 @@
   <meta name="csrf-token" content="{{ csrf_token }}">
   <meta name="description" content="{% block description %}{{ site_description }}{% endblock %}">
   <meta name="author" content="{% block author %}{{ site_author }}{% endblock %}">
+  <meta name="theme-color" content="#0172ad">
   {% block head %}{% endblock %}
   <link rel="canonical" href="{{ canonical_url }}">
   <script type="application/ld+json" nonce="{{ csp_nonce }}">{{ jsonld | tojson }}</script>
@@ -19,6 +20,7 @@
   <link rel="stylesheet" href="/static/custom.css">
 </head>
 <body>
+<a class="skip-link visually-hidden" href="#content">Skip to content</a>
 <header class="site-header">
   <nav class="container">
     <a class="logo" href="/">{{ site_title }}</a>
@@ -49,7 +51,7 @@
     </ul>
   </nav>
 </header>
-<main class="container">
+<main class="container" id="content">
   {% if breadcrumbs %}<nav class="breadcrumbs" aria-label="Breadcrumb">{% for label, url in breadcrumbs %}{% if not loop.last %}<a href="{{ url }}">{{ label }}</a> »{% else %} <span aria-current="page">{{ label }}</span>{% endif %}{% endfor %}</nav>{% endif %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}{% for category, message in messages %}<p class="flash flash-{{ category }}">{{ message }}</p>{% endfor %}{% endif %}
@@ -70,8 +72,7 @@
 </main>
 <footer class="site-footer">
   <div class="container">
-    <p><a href="https://github.com">GitHub</a> · <a href="https://x.com">X</a></p>
-    <p>© {{ year }} {{ site_title }} · <a href="/sitemap.xml">Site map</a></p>
+    <p>© {{ year }} {{ site_title }} · <a href="/sitemap.xml">Site map</a> · <a href="/feed.xml">Feed</a></p>
   {% if theme_active %}<p class="theme-credit"><small>Theme artwork generated with Agnes AI.</small></p>{% endif %}
   </div>
 </footer>

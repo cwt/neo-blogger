@@ -398,8 +398,13 @@ def assemble(app: Quart, context: AppContext) -> None:
             "author": context.config.application.site_author,
             "description": context.config.application.site_description,
         }
+        canonical = canonical_url_for(
+            context.config.application.base_url,
+            request_base(context.proxy_trust),
+            request.path,
+        )
         if article is not None:
-            structured = jsonld_document(article, site)
+            structured = jsonld_document(article, site, canonical)
         else:
             structured = jsonld_document(None, site)
         banners = context.theme_banners or {}
@@ -419,11 +424,7 @@ def assemble(app: Quart, context: AppContext) -> None:
             "breadcrumbs": getattr(g, "breadcrumbs", []),
             "theme_banner": banner_url,
             "theme_active": bool(banners),
-            "canonical_url": canonical_url_for(
-                context.config.application.base_url,
-                request_base(context.proxy_trust),
-                request.path,
-            ),
+            "canonical_url": canonical,
             "jsonld": structured,
         }
 

@@ -15,7 +15,7 @@
     {% for tag in article.tags[:3] %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}
     {% if article.tags|length > 3 %}<span class="more-tags">+{{ article.tags|length - 3 }} more</span>{% endif %}
   </p>
-  <p class="meta">Posted by {{ article.author }} on {{ article.created | readable_date }}</p>
+  <p class="meta">Posted by {{ article.author }} on <time datetime="{{ article.created }}">{{ article.created | readable_date }}</time></p>
 </article>
 {% else %}
 <p>Nothing found.</p>

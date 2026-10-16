@@ -112,6 +112,18 @@ nav.breadcrumbs {
   white-space: nowrap;
 }
 
+/* Skip link: hidden until keyboard focus lands on it. */
+.skip-link:focus-visible {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  display: inline-block;
+  margin: 0.5rem;
+}
+
 /* Hamburger drawn in CSS, not as a glyph: no font can flash it black or
    change its geometry; the bars are currentColor and follow the theme. */
 .hamburger {

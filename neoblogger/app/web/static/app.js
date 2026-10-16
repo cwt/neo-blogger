@@ -2,38 +2,52 @@
 
 // Back-to-top button (§17): appears after scrolling.
 const topButton = document.getElementById("back-to-top");
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 if (topButton) {
   window.addEventListener("scroll", () => {
     topButton.hidden = window.scrollY < 300;
   });
   topButton.addEventListener("click", () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
   });
 }
 
 // Copy affordance on each highlighted code block (spec §6).
-document.querySelectorAll("div.highlight").forEach((block) => {
-  const pre = block.querySelector("pre");
-  if (!pre) return;
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "copy-button";
-  button.setAttribute("aria-label", "Copy code to clipboard");
-  button.textContent = "Copy";
-  button.addEventListener("click", async () => {
-    await navigator.clipboard.writeText(pre.innerText);
-    button.textContent = "Copied!";
-    window.setTimeout(() => {
-      button.textContent = "Copy";
-    }, 1500);
+// Skipped where the Clipboard API is unavailable (insecure origins).
+if (navigator.clipboard) {
+  document.querySelectorAll("div.highlight").forEach((block) => {
+    const pre = block.querySelector("pre");
+    if (!pre) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "copy-button";
+    button.setAttribute("aria-label", "Copy code to clipboard");
+    button.textContent = "Copy";
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(pre.innerText);
+      } catch {
+        return;
+      }
+      button.textContent = "Copied!";
+      window.setTimeout(() => {
+        button.textContent = "Copy";
+      }, 1500);
+    });
+    block.appendChild(button);
   });
-  block.appendChild(button);
-});
+}
 
 // One-click clipboard copy with visual feedback (spec §10.1).
+// No-ops where the Clipboard API is unavailable (e.g. insecure origins).
 document.querySelectorAll("[data-copy-url]").forEach((control) => {
+  if (!navigator.clipboard) return;
   control.addEventListener("click", async () => {
-    await navigator.clipboard.writeText(control.dataset.copyUrl);
+    try {
+      await navigator.clipboard.writeText(control.dataset.copyUrl);
+    } catch {
+      return;
+    }
     const original = control.textContent;
     control.textContent = "Copied!";
     window.setTimeout(() => {
@@ -45,23 +59,30 @@ document.querySelectorAll("[data-copy-url]").forEach((control) => {
 // Post-upload success-banner Copy button (spec §10.1): the /upload view
 // flashes "Uploaded: /images/<id>.webp" and redirects; enhance that banner
 // with a one-click copy control carrying the same data-copy-url contract.
-document.querySelectorAll(".flash-success").forEach((banner) => {
-  const match = banner.textContent.match(/\/images\/[0-9a-f]{24}\.webp/);
-  if (!match || banner.querySelector("[data-copy-url]")) return;
-  const button = document.createElement("button");
-  button.type = "button";
-  button.dataset.copyUrl = match[0];
-  button.textContent = "Copy URL";
-  button.addEventListener("click", async () => {
-    await navigator.clipboard.writeText(match[0]);
-    const original = button.textContent;
-    button.textContent = "Copied!";
-    window.setTimeout(() => {
-      button.textContent = original;
-    }, 1500);
+// Skipped where the Clipboard API is unavailable.
+if (navigator.clipboard) {
+  document.querySelectorAll(".flash-success").forEach((banner) => {
+    const match = banner.textContent.match(/\/images\/[0-9a-f]{24}\.webp/);
+    if (!match || banner.querySelector("[data-copy-url]")) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.copyUrl = match[0];
+    button.textContent = "Copy URL";
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(match[0]);
+      } catch {
+        return;
+      }
+      const original = button.textContent;
+      button.textContent = "Copied!";
+      window.setTimeout(() => {
+        button.textContent = original;
+      }, 1500);
+    });
+    banner.appendChild(button);
   });
-  banner.appendChild(button);
-});
+}
 
 // Delete confirmation via the shared <dialog> (spec §4.5, §5.4, §6, §7).
 // Progressive enhancement: without JS the delete forms submit immediately.

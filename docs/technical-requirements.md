@@ -107,7 +107,7 @@ Blueprints are **thin controllers**: no business rules, no storage access. Rule:
 ## 4. Web layer details
 
 - Framework: Quart; Jinja2 templates with autoescape on; strict-undefined mode in development.
-- URL scheme (public surface): home `/`, article `/{slug-or-id}` (id-based; confirm with data model §5.1), tag `/tag/{name}`, search `/search?q=...&page=N`, auth pages, profile `/profile`, write `/write`, upload `/upload`, admin `/admin`, review `/admin/unpublished`, images `/images/{id}.{ext}`, sitemap `/sitemap.xml`, robots `/robots.txt`, health `/healthz`.
+- URL scheme (public surface): home `/`, article `/{slug-or-id}` (id-based; confirm with data model §5.1), tag `/tag/{name}`, search `/search?q=...&page=N`, auth pages, profile `/profile`, write `/write`, upload `/upload`, admin `/admin`, review `/admin/unpublished`, images `/images/{id}.{ext}`, sitemap `/sitemap.xml`, robots `/robots.txt`, Atom feed `/feed.xml`, LLM map `/llms.txt`, health `/healthz`.
 - All state-changing routes require an authenticated, active member and CSRF token (spec §13).
 - Rate limiting: fixed-window counter keyed by (client IP, normalized email) on the sign-in and password-recovery endpoints (spec Appendix B D5); counters live in-process, never fatal on failure.
 - Proxy trust: parse `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host` **only** from the adjacent hop; trusted-hop allowlist configurable, default loopback (spec §15.8). Canonical URLs and rate-limit keys use the reconstructed client address/scheme.
@@ -282,6 +282,9 @@ Also: CSRF enforcement (§8), upload hardening (§9), per-request member re-reso
 - Article pages: description (derived from body text), author meta, keywords = tags, published-time, Open Graph article metadata with cover image — **preview metadata references the legacy-format image variant** (spec §16).
 - JSON-LD structured data: Article schema on article pages (headline, author, date, description, cover, keywords, site as publisher organization with logo); WebSite schema elsewhere (spec §16).
 - Dynamic `/sitemap.xml` (publicly visible articles + home, last-modified dates) and `/robots.txt` advertising the absolute sitemap URL (spec §16); footer links to the sitemap.
+- **Discovery extras (GEO/SEO, 2026-10-16):** Atom `/feed.xml` (latest 20 public articles, RFC 3339 timestamps) and `/llms.txt` (site summary + latest 50 article links + feed/sitemap pointers) for feed readers and LLM crawlers; both reuse the indexed public-feed query path.
+- Article JSON-LD carries `mainEntityOfPage` (canonical URL) and a `speakable` selector pair (headline + body) for answer engines; dates render as `<time datetime>` elements.
+- Crawl hygiene: `noindex, follow` on search and auth pages (thin/non-public content); `theme-color`, Twitter Card, `og:url`/`og:site_name`/`og:image:alt` on every article page; skip-to-content link with visible focus.
 - Readable dates: "Month DD, YYYY at HH:MM", date-only at midnight (spec §16).
 
 ---
