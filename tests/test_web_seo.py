@@ -142,8 +142,8 @@ async def test_article_metadata_and_jsonld(app: Any) -> None:
     assert '"Meta rich"' in rendered
     assert '"keywords"' in rendered
     assert '"datePublished"' in rendered
-    # og image uses the legacy variant for link-preview scrapers (§16)
-    assert ".jpg" in rendered or ".png" in rendered
+    # External covers keep their original URL (bugs/005); local covers use .jpg.
+    assert "https://x.io/c.webp" in rendered
     # Per-article description/author override the site-wide metadata (§16).
     assert '<meta name="description" content="Body text of Meta rich' in rendered
     assert '<meta name="author" content="root">' in rendered

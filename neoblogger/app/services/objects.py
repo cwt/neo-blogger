@@ -77,7 +77,12 @@ def stored_filename(owner: str, original: str) -> str:
 
 
 def legacy_url(image_url: str, extension: str = "jpg") -> str:
-    """The older-format variant URL for preview metadata (§10.4, §16)."""
+    """The older-format variant URL for preview metadata (§10.4, §16).
+
+    Only local ``/images/`` URLs have server-side conversions (bugs/005).
+    """
+    if not image_url.startswith("/images/"):
+        return image_url
     root, dot, _extension = image_url.rpartition(".")
     if not dot:
         return image_url

@@ -10,11 +10,13 @@ from werkzeug.wrappers import Response as WerkzeugResponse
 
 from ..context import AppContext
 from ..repositories.documents import MemberDocument
+from ..security.proxy import forwarded_base
 from ..services.articles import CoverRequiredError
 from ..services.objects import derive_description, legacy_url
 from ..text.highlight import highlight_code_blocks
 from ..text.markdown import render_markdown
 from ..text.sanitize import sanitize_html
+from .seo import canonical_url_for
 
 __all__ = [
     "HexIdConverter",
@@ -86,7 +88,9 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
             "author": article["author"],
             "created": article["created"],
             "description": derive_description(article["body"]),
-            "image": legacy_url(article["cover_url"]) if article["cover_url"] else None,
+            "image": _absolute_image_url(context, article["cover_url"])
+            if article["cover_url"]
+            else None,
             "tags": article["tags"],
         }
         g.breadcrumbs = [("Home", "/"), (article["title"], f"/{article_id}")]
@@ -213,6 +217,24 @@ def render_home_page(
         )
 
     return _render()
+
+
+def _absolute_image_url(context: AppContext, cover_url: str) -> str:
+    """Canonical absolute image URL for metadata (bugs/005, spec §18)."""
+    local = legacy_url(cover_url)
+    if local.startswith("http://") or local.startswith("https://"):
+        return local
+    peer = request.remote_addr or ""
+    fallback = forwarded_base(
+        peer,
+        request.scheme,
+        request.host,
+        request.headers.get("X-Forwarded-Proto"),
+        request.headers.get("X-Forwarded-Host"),
+        request.url_root,
+        context.proxy_trust,
+    )
+    return canonical_url_for(context.config.application.base_url, fallback, local)
 
 
 def _now() -> str:
