@@ -17,16 +17,27 @@ __all__ = ["ObjectRepository"]
 
 CHUNK_SIZE_BYTES = 256 * 1024
 
+_THEME_OWNER = "theme"
+"""System-banner owner excluded from admin galleries (services.theme.THEME_OWNER)."""
+
 
 class ObjectRepository:
     """GridFS access through the DB executor facade."""
 
     def __init__(self, database: Database) -> None:
         self._database = database
+        self._bucket_cached: GridFSBucket | None = None
+        self._bucket_conn_id: int | None = None
 
     def _bucket(self) -> GridFSBucket:
-        """The bucket instance on the connection."""
-        return GridFSBucket(self._database.connection)
+        """The bucket instance on the connection, cached per connection."""
+        connection = self._database.connection
+        if self._bucket_cached is not None and self._bucket_conn_id == id(connection):
+            return self._bucket_cached
+        bucket = GridFSBucket(connection)
+        self._bucket_cached = bucket
+        self._bucket_conn_id = id(connection)
+        return bucket
 
     async def upload(
         self,
@@ -101,14 +112,23 @@ class ObjectRepository:
         await self._database.run(remove)
 
     async def list_for(
-        self, owner: str | None, page: int, per_page: int
+        self,
+        owner: str | None,
+        page: int,
+        per_page: int,
+        exclude_owner: str | None = _THEME_OWNER,
     ) -> tuple[list[dict[str, Any]], int]:
         """Gallery listing, newest first (§10.3)."""
 
         def read() -> tuple[list[dict[str, Any]], int]:
             bucket = self._bucket()
             connection = self._database.connection
-            query = {"metadata.owner": owner} if owner else {}
+            if owner:
+                query: dict[str, Any] = {"metadata.owner": owner}
+            elif exclude_owner:
+                query = {"metadata.owner": {"$ne": exclude_owner}}
+            else:
+                query = {}
             count = connection.fs.files.count_documents(query)
             if count == 0:
                 return [], 0

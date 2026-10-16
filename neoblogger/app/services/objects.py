@@ -19,6 +19,7 @@ from PIL import Image
 from ..repositories.articles import ArticleRepository
 from ..repositories.documents import ArticleDocument, MemberDocument
 from ..repositories.objects import ObjectRepository
+from .theme import THEME_OWNER
 
 __all__ = ["ImageRejectedError", "ObjectsService"]
 
@@ -180,6 +181,8 @@ class ObjectsService:
         """Owner-or-admin delete, refused while an article cover (§10.5)."""
         registry = await self._objects.metadata(object_id)
         if registry is None:
+            return False, []
+        if registry["metadata"].get("owner") == THEME_OWNER:
             return False, []
         authorized = viewer["administrator"] or (
             registry["metadata"].get("owner") == viewer["display_name"]

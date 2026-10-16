@@ -99,9 +99,33 @@ def ensure_indexes(
     members.create_index(
         [("administrator", ASCENDING), ("publisher", ASCENDING), ("active", ASCENDING)]
     )
+    articles.create_index(
+        [
+            ("status", ASCENDING),
+            ("author_active", ASCENDING),
+            ("author_publisher", ASCENDING),
+            ("created", DESCENDING),
+        ]
+    )
+    articles.create_index([("author_publisher", ASCENDING), ("created", DESCENDING)])
+    comments.create_index(
+        [
+            ("article_id", ASCENDING),
+            ("author_active", ASCENDING),
+            ("created", DESCENDING),
+        ]
+    )
     from neosqlite.gridfs import GridFSBucket
 
     GridFSBucket(connection)
+    try:
+        connection.fs.files.create_index("metadata.owner")
+    except Exception:
+        with contextlib.suppress(Exception):
+            connection.db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_fs_files_metadata_owner "
+                "ON fs_files(json_extract(metadata, '$.owner'))"
+            )
 
 
 def ensure_content_version(connection: neosqlite.Connection) -> None:
