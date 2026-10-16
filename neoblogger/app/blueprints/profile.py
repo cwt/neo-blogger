@@ -1,5 +1,7 @@
 """Member workspace: statistics and posts management (spec §4.5, §4.6)."""
 
+import asyncio
+
 from quart import Blueprint, flash, g, redirect, render_template, request
 from werkzeug.wrappers import Response
 
@@ -20,15 +22,29 @@ def create_profile_blueprint(context: AppContext) -> Blueprint:
         if g.member is None:
             await flash("Sign in first.", "error")
             return redirect("/signin")
-        stats = await context.accounts.profile_statistics(g.member)
-        posts = await context.visibility.articles_by_author(g.member["display_name"])
-        drafts = [post for post in posts if post["status"] == "draft"]
-        published = [post for post in posts if post["status"] == "published"]
-        recent_published = published[:_RECENT_PUBLISHED_LIMIT]
+        stats: dict[str, int] = {}
+        drafts: list[object] = []
+        recent: list[object] = []
+        async with asyncio.TaskGroup() as group:
+
+            async def _load_stats() -> None:
+                nonlocal stats
+                stats = await context.accounts.profile_statistics(g.member)
+
+            async def _load_posts() -> None:
+                nonlocal drafts, recent
+                display = g.member["display_name"]
+                fetched = await context.articles.author_profile_posts(
+                    display, _RECENT_PUBLISHED_LIMIT
+                )
+                draft_docs, published_docs = fetched
+                drafts = list(draft_docs)
+                recent = list(published_docs)
+
+            group.create_task(_load_stats())
+            group.create_task(_load_posts())
         g.breadcrumbs = [("Home", "/"), ("Profile", "/profile")]
-        return await render_template(
-            "profile.html", stats=stats, posts=drafts + recent_published
-        )
+        return await render_template("profile.html", stats=stats, posts=drafts + recent)
 
     @blueprint.route("/profile/edit", methods=["GET", "POST"])
     async def edit() -> str | Response:

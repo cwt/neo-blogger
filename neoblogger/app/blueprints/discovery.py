@@ -4,6 +4,7 @@ Tag pages are explicitly no-cache; search responses are never cached.
 Rejections flash "please use only text" and redirect home (§9).
 """
 
+import asyncio
 from urllib.parse import quote_plus
 
 from quart import Blueprint, flash, g, redirect, render_template, request
@@ -22,10 +23,25 @@ def create_discovery_blueprint(context: AppContext) -> Blueprint:
     @blueprint.route("/tag/<name>")
     async def tag_page(name: str) -> str | WerkzeugResponse:
         page, per_page = page_parameters(context)
-        articles, total = await context.article_service.tag_page(
-            g.member, name, page, per_page
-        )
-        related = await context.article_service.related_tags(g.member, name)
+        articles: list[object] = []
+        total = 0
+        related: list[tuple[str, int]] = []
+        async with asyncio.TaskGroup() as group:
+
+            async def _load_page() -> None:
+                nonlocal articles, total
+                result, count = await context.article_service.tag_page(
+                    g.member, name, page, per_page
+                )
+                articles = list(result)
+                total = count
+
+            async def _load_related() -> None:
+                nonlocal related
+                related = await context.article_service.related_tags(g.member, name)
+
+            group.create_task(_load_page())
+            group.create_task(_load_related())
         g.breadcrumbs = [("Home", "/"), (f"#{name}", f"/tag/{name}")]
         return await render_template(
             "tag.html",

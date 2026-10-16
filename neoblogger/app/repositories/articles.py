@@ -12,7 +12,7 @@ from typing import Any, cast
 from neosqlite import DESCENDING
 
 from .db import Database
-from .documents import ArticleDocument, normalized_document
+from .documents import ArticleDocument, CommentDocument, normalized_document
 
 __all__ = ["ArticleRepository"]
 
@@ -136,6 +136,37 @@ class ArticleRepository:
 
         return await self._database.run(find)
 
+    async def page_data(
+        self, article_id: str, viewer_is_admin: bool
+    ) -> tuple[ArticleDocument | None, list[CommentDocument]]:
+        """Article plus visible comments in one executor hop (bugs/015)."""
+
+        def read() -> tuple[ArticleDocument | None, list[CommentDocument]]:
+            connection = self._database.connection
+            document = connection.articles.find_one({"_id": article_id})
+            article = _normalize(document) if document is not None else None
+            if article is None:
+                return None, []
+            if viewer_is_admin:
+                comment_filter: dict[str, object] = {"article_id": article_id}
+            else:
+                comment_filter = {
+                    "article_id": article_id,
+                    "author_active": True,
+                }
+            cursor = connection.comments.find(comment_filter)
+            try:
+                rows = list(cursor.sort([("created", DESCENDING)]))
+            except Exception:
+                rows = list(cursor)
+            comments = [
+                cast(CommentDocument, normalized_document(row, ("author_active",)))
+                for row in rows
+            ]
+            return article, comments
+
+        return await self._database.run(read)
+
     async def feed_page(
         self, query_filter: dict[str, Any], page: int, per_page: int
     ) -> tuple[list[ArticleDocument], int]:
@@ -150,6 +181,7 @@ class ArticleRepository:
                         "docs": [
                             {"$skip": (page - 1) * per_page},
                             {"$limit": per_page},
+                            {"$project": {"body": 0}},
                         ],
                         "total": [{"$count": "n"}],
                     }
@@ -167,9 +199,66 @@ class ArticleRepository:
         """The author's own articles (drafts and published), newest first."""
 
         def read() -> list[ArticleDocument]:
-            cursor = self._database.connection.articles.find({"author": author})
+            cursor = self._database.connection.articles.find(
+                {"author": author}, {"body": 0}
+            )
             documents = list(cursor.sort([("created", DESCENDING)]))
             return [_normalize(document) for document in documents]
+
+        return await self._database.run(read)
+
+    async def author_profile_posts(
+        self, author: str, limit: int = 5
+    ) -> tuple[list[ArticleDocument], list[ArticleDocument]]:
+        """Drafts plus recent published posts without bodies (bugs/013)."""
+
+        def read() -> tuple[list[ArticleDocument], list[ArticleDocument]]:
+            pipeline = [
+                {"$match": {"author": author}},
+                {"$sort": {"created": -1}},
+                {
+                    "$facet": {
+                        "drafts": [
+                            {"$match": {"status": "draft"}},
+                            {"$project": {"body": 0}},
+                        ],
+                        "published": [
+                            {"$match": {"status": "published"}},
+                            {"$limit": limit},
+                            {"$project": {"body": 0}},
+                        ],
+                    }
+                },
+            ]
+            facet = next(
+                iter(self._database.connection.articles.aggregate(pipeline).to_list())
+            )
+            drafts = [_normalize(d) for d in facet.get("drafts", [])]
+            published = [_normalize(d) for d in facet.get("published", [])]
+            return drafts, published
+
+        return await self._database.run(read)
+
+    async def sitemap_entries(self, page: int, per_page: int) -> list[dict[str, Any]]:
+        """Only _id and created for sitemap (bugs/013)."""
+
+        def read() -> list[dict[str, Any]]:
+            pipeline = [
+                {
+                    "$match": {
+                        "status": "published",
+                        "author_active": True,
+                        "author_publisher": True,
+                    }
+                },
+                {"$sort": {"created": -1}},
+                {"$skip": (page - 1) * per_page},
+                {"$limit": per_page},
+                {"$project": {"created": 1}},
+            ]
+            return list(
+                self._database.connection.articles.aggregate(pipeline).to_list()
+            )
 
         return await self._database.run(read)
 
@@ -184,18 +273,21 @@ class ArticleRepository:
             query = dict(query_filter)
             if "$text" not in query:
                 query["$text"] = {"$search": term}
-
-            cursor = (
-                connection.articles.find(query)
-                .sort([("score", {"$meta": "textScore"})])
-                .limit(_MAX_SEARCH_CANDIDATES)
-            )
-            candidates = list(cursor)
-            if not candidates:
-                return [], 0
             start = (page - 1) * per_page
-            window = candidates[start : start + per_page]
-            return [_normalize(document) for document in window], len(candidates)
+            try:
+                total = connection.articles.count_documents(query)
+            except Exception:
+                total = 0
+            cursor = (
+                connection.articles.find(query, {"body": 0})
+                .sort([("score", {"$meta": "textScore"})])
+                .skip(start)
+                .limit(per_page)
+            )
+            window = list(cursor)
+            if total == 0 and window:
+                total = start + len(window)
+            return [_normalize(document) for document in window], total
 
         return await self._database.run(read)
 
@@ -231,26 +323,6 @@ class ArticleRepository:
                 self._database.connection.articles.aggregate(pipeline).to_list()
             )
             return [(str(row["_id"]), int(row["n"])) for row in rows]
-
-        return await self._database.run(read)
-
-    async def covers_in_use(self, cover_url: str) -> list[ArticleDocument]:
-        """Articles currently using the cover (deletion guard, spec §10.5)."""
-
-        def read() -> list[ArticleDocument]:
-            cursor = self._database.connection.articles.find({"cover_url": cover_url})
-            return [_normalize(document) for document in cursor]
-
-        return await self._database.run(read)
-
-    async def covers_in_use_any(self, cover_urls: list[str]) -> list[ArticleDocument]:
-        """Articles using any of the given cover URLs (format variants)."""
-
-        def read() -> list[ArticleDocument]:
-            cursor = self._database.connection.articles.find(
-                {"cover_url": {"$in": cover_urls}}
-            )
-            return [_normalize(document) for document in cursor]
 
         return await self._database.run(read)
 
@@ -296,7 +368,7 @@ class ArticleRepository:
 
         def read() -> list[ArticleDocument]:
             cursor = self._database.connection.articles.find(
-                {"author_publisher": False}
+                {"author_publisher": False}, {"body": 0}
             )
             documents = list(cursor.sort([("created", DESCENDING)]))
             return [_normalize(document) for document in documents]
@@ -307,26 +379,11 @@ class ArticleRepository:
         """Published and draft totals in one pipeline (dashboard, S2-4)."""
 
         def read() -> dict[str, int]:
-            pipeline = [
-                {
-                    "$facet": {
-                        "published": [
-                            {"$match": {"status": "published"}},
-                            {"$count": "n"},
-                        ],
-                        "draft": [{"$match": {"status": "draft"}}, {"$count": "n"}],
-                    }
-                }
-            ]
+            pipeline = _status_facet_pipeline()
             facet = next(
                 iter(self._database.connection.articles.aggregate(pipeline).to_list())
             )
-            return {
-                "published": int(facet["published"][0]["n"])
-                if facet["published"]
-                else 0,
-                "draft": int(facet["draft"][0]["n"]) if facet["draft"] else 0,
-            }
+            return _counts_from_facet(facet)
 
         return await self._database.run(read)
 
@@ -334,29 +391,38 @@ class ArticleRepository:
         """An author's published and draft totals in one pipeline (§4.5)."""
 
         def read() -> dict[str, int]:
-            pipeline = [
-                {"$match": {"author": author}},
-                {
-                    "$facet": {
-                        "published": [
-                            {"$match": {"status": "published"}},
-                            {"$count": "n"},
-                        ],
-                        "draft": [{"$match": {"status": "draft"}}, {"$count": "n"}],
-                    }
-                },
-            ]
+            pipeline = _status_facet_pipeline({"author": author})
             facet = next(
                 iter(self._database.connection.articles.aggregate(pipeline).to_list())
             )
-            return {
-                "published": int(facet["published"][0]["n"])
-                if facet["published"]
-                else 0,
-                "draft": int(facet["draft"][0]["n"]) if facet["draft"] else 0,
-            }
+            return _counts_from_facet(facet)
 
         return await self._database.run(read)
+
+
+def _status_facet_pipeline(
+    extra_match: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Shared published/draft $facet pipeline (bugs/023)."""
+    stages: list[dict[str, Any]] = []
+    if extra_match is not None:
+        stages.append({"$match": extra_match})
+    stages.append(
+        {
+            "$facet": {
+                "published": [{"$match": {"status": "published"}}, {"$count": "n"}],
+                "draft": [{"$match": {"status": "draft"}}, {"$count": "n"}],
+            }
+        }
+    )
+    return stages
+
+
+def _counts_from_facet(facet: dict[str, Any]) -> dict[str, int]:
+    return {
+        "published": int(facet["published"][0]["n"]) if facet["published"] else 0,
+        "draft": int(facet["draft"][0]["n"]) if facet["draft"] else 0,
+    }
 
 
 def _escape_regex(term: str) -> str:

@@ -3,11 +3,9 @@
 from typing import Any
 from xml.sax.saxutils import escape as xml_escape
 
-from quart import Blueprint, Response, request
+from quart import Blueprint, Response
 
 from ..context import AppContext
-from ..security.proxy import forwarded_base
-from ..services.visibility import PUBLIC_FEED_FILTER
 
 __all__ = ["canonical_url_for", "create_seo_blueprint", "jsonld_document"]
 
@@ -63,11 +61,9 @@ def create_seo_blueprint(context: AppContext) -> Blueprint:
         entries = [f"  <url><loc>{base}/</loc></url>"]
         page = 1
         while True:
-            batch, _total = await context.articles.feed_page(
-                PUBLIC_FEED_FILTER, page, _SITEMAP_PAGE_SIZE
-            )
+            batch = await context.articles.sitemap_entries(page, _SITEMAP_PAGE_SIZE)
             for article in batch:
-                lastmod = article["created"].split("T")[0]
+                lastmod = str(article["created"]).split("T")[0]
                 entries.append(
                     f"  <url><loc>{base}/{article['_id']}</loc>"
                     f"<lastmod>{lastmod}</lastmod></url>"
@@ -95,13 +91,6 @@ def create_seo_blueprint(context: AppContext) -> Blueprint:
 
 def _request_base(context: AppContext) -> str:
     """Fallback base URL honoring a trusted proxy (§15.8, §16)."""
-    peer = request.remote_addr or ""
-    return forwarded_base(
-        peer,
-        request.scheme,
-        request.host,
-        request.headers.get("X-Forwarded-Proto"),
-        request.headers.get("X-Forwarded-Host"),
-        request.url_root,
-        context.proxy_trust,
-    )
+    from ..wiring import request_base
+
+    return request_base(context.proxy_trust)

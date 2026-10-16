@@ -4,6 +4,8 @@ Only administrators reach any admin route; role changes resync the
 author-visibility snapshots and clear the response cache (§11.2, §14).
 """
 
+import asyncio
+
 from quart import Blueprint, flash, g, redirect, render_template, request
 from werkzeug.wrappers import Response
 
@@ -26,16 +28,40 @@ def create_admin_blueprint(context: AppContext) -> Blueprint:
         refused = await _guard()
         if refused is not None:
             return refused
-        member_stats = await context.members.dashboard()
-        article_stats = await context.articles.count_by_status()
-        comments_total = await context.comments.total()
+        member_stats: dict[str, int] = {}
+        article_stats: dict[str, int] = {}
+        comments_total = 0
+        member_rows: list[object] = []
+        async with asyncio.TaskGroup() as group:
+
+            async def _load_members() -> None:
+                nonlocal member_stats
+                member_stats = await context.members.dashboard()
+
+            async def _load_articles() -> None:
+                nonlocal article_stats
+                article_stats = await context.articles.count_by_status()
+
+            async def _load_comments() -> None:
+                nonlocal comments_total
+                comments_total = await context.comments.total()
+
+            async def _load_rows() -> None:
+                nonlocal member_rows
+                rows = await context.members.all()
+                member_rows = list(rows)
+
+            group.create_task(_load_members())
+            group.create_task(_load_articles())
+            group.create_task(_load_comments())
+            group.create_task(_load_rows())
         g.breadcrumbs = [("Home", "/"), ("Admin", "/admin")]
         return await render_template(
             "admin.html",
             members=member_stats,
             articles=article_stats,
             comments_total=comments_total,
-            member_rows=await context.members.all(),
+            member_rows=member_rows,
         )
 
     @blueprint.route("/admin/unpublished")

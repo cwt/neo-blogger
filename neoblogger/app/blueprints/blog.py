@@ -1,6 +1,5 @@
 """Reading and writing: home feed, article pages, editor, deletion (spec §5, §6)."""
 
-import datetime
 import logging
 from collections.abc import Awaitable
 
@@ -13,9 +12,9 @@ from ..repositories.documents import MemberDocument
 from ..security.proxy import forwarded_base
 from ..services.articles import CoverRequiredError
 from ..services.objects import derive_description, legacy_url
-from ..text.highlight import highlight_code_blocks
-from ..text.markdown import render_markdown
-from ..text.sanitize import sanitize_html
+from ..services.timestamps import now_iso as _now_iso
+from ..text.pipeline import render_rich_text
+from .paging import parse_page_number
 from .seo import canonical_url_for
 
 __all__ = [
@@ -34,12 +33,7 @@ _COVER_PICKER_LIMIT = 48
 
 def page_parameters(context: AppContext) -> tuple[int, int]:
     """Clamped (page, per_page) from the query string (spec §14, §18)."""
-    try:
-        page = int(request.args.get("page", "1"))
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
+    page = parse_page_number(request.args)
     per_page = context.config.posts.per_page
     if per_page < 1:
         per_page = 1
@@ -47,9 +41,6 @@ def page_parameters(context: AppContext) -> tuple[int, int]:
     if per_page > maximum:
         per_page = maximum
     return page, per_page
-
-
-_page_parameters = page_parameters
 
 
 class HexIdConverter(BaseConverter):
@@ -63,25 +54,20 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
 
     @blueprint.route("/")
     async def home() -> str | WerkzeugResponse:
-        page, per_page = _page_parameters(context)
+        page, per_page = page_parameters(context)
         g.breadcrumbs = [("Home", "/")]
         return await render_home_page(context, page, per_page, g.member)
 
     @blueprint.route("/<hexid:article_id>")
     async def article_page(article_id: str) -> str | WerkzeugResponse:
-        article = await context.articles.by_id(article_id)
+        is_admin = bool(g.member and g.member["administrator"])
+        article, comments = await context.articles.page_data(article_id, is_admin)
         if article is None or not context.visibility.can_view(g.member, article):
             await flash("That content is not available.", "error")
             return redirect("/")
-        rendered_body = highlight_code_blocks(
-            sanitize_html(render_markdown(article["body"]))
-        )
-        comments = await context.comment_service.list(article, g.member)
+        rendered_body = render_rich_text(article["body"])
         comment_rendered = {
-            comment["_id"]: highlight_code_blocks(
-                sanitize_html(render_markdown(comment["text"]))
-            )
-            for comment in comments
+            comment["_id"]: render_rich_text(comment["text"]) for comment in comments
         }
         g.article = {
             "title": article["title"],
@@ -176,7 +162,7 @@ def create_blog_blueprint(context: AppContext) -> Blueprint:
         form = await request.form
         try:
             await context.comment_service.add(
-                g.member, article, form.get("text", "").strip(), _now()
+                g.member, article, form.get("text", "").strip(), _now_iso()
             )
         except Exception as error:
             _logger.error("Failed to post comment: %s", error, exc_info=True)
@@ -238,5 +224,5 @@ def _absolute_image_url(context: AppContext, cover_url: str) -> str:
 
 
 def _now() -> str:
-    """The current local timestamp as an ISO string (spec §5.1)."""
-    return datetime.datetime.now().isoformat(timespec="seconds")
+    """Legacy alias for shared UTC timestamps (bugs/023)."""
+    return _now_iso()

@@ -214,8 +214,22 @@ class AccountService:
 
         Counts run in the engine; article bodies are never loaded (§14).
         """
-        counts = await self._visibility.count_by_author(member["display_name"])
-        comments_written = await self._comments.count_by_author(member["display_name"])
+        counts: dict[str, int] = {}
+        comments_written = 0
+        async with asyncio.TaskGroup() as group:
+
+            async def _load_articles() -> None:
+                nonlocal counts
+                counts = await self._visibility.count_by_author(member["display_name"])
+
+            async def _load_comments() -> None:
+                nonlocal comments_written
+                comments_written = await self._comments.count_by_author(
+                    member["display_name"]
+                )
+
+            group.create_task(_load_articles())
+            group.create_task(_load_comments())
         published = counts["published"]
         drafts = counts["draft"]
         return {

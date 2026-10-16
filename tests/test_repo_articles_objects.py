@@ -136,12 +136,9 @@ async def test_search_respects_visibility_filter(
     assert docs[0]["title"] == "public"
 
 
-async def test_search_caps_candidate_window(
-    articles: ArticleRepository, monkeypatch: pytest.MonkeyPatch
+async def test_search_paginates_with_skip_limit(
+    articles: ArticleRepository,
 ) -> None:
-    from neoblogger.app.repositories import articles as articles_module
-
-    monkeypatch.setattr(articles_module, "_MAX_SEARCH_CANDIDATES", 2)
     for idx in range(5):
         await articles.create(
             f"candidate {idx}",
@@ -154,8 +151,12 @@ async def test_search_caps_candidate_window(
             "published",
         )
     docs, total = await articles.search({"status": "published"}, "target", 1, 10)
-    assert total == 2
-    assert len(docs) == 2
+    assert total == 5
+    assert len(docs) == 5
+    page1, _ = await articles.search({"status": "published"}, "target", 1, 2)
+    assert len(page1) == 2
+    page2, _ = await articles.search({"status": "published"}, "target", 2, 2)
+    assert len(page2) == 2
 
 
 async def test_update_preserves_snapshots_when_omitted(
@@ -273,13 +274,15 @@ async def test_related_tags_pipeline(articles: ArticleRepository) -> None:
 
 async def test_covers_in_use_guard(articles: ArticleRepository) -> None:
     cover = "https://x.io/cover.webp"
+    object_id = "0123456789abcdef01234567"
+    variants = [f"/images/{object_id}.webp", cover]
     await articles.create(
         "A", "s", "b", cover, "a", "2026-01-01T00:00:00", [], "published"
     )
     await articles.create(
         "B", "s", "b", "", "a", "2026-01-02T00:00:00", [], "published"
     )
-    users = await articles.covers_in_use(cover)
+    users = await articles.covers_using_image(object_id, variants)
     assert len(users) == 1
     assert users[0]["title"] == "A"
 
