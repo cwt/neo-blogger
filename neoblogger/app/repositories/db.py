@@ -171,14 +171,16 @@ def backfill_first_admin(connection: neosqlite.Connection) -> None:
 def backfill_sole_admin_publisher(connection: neosqlite.Connection) -> None:
     """Ensure a sole administrator is always a publisher (spec §2, tech-req §3.4)."""
     members = connection.members
-    if members.count_documents({"administrator": True}) == 1:
-        admin = members.find_one({"administrator": True})
-        if admin is not None and not admin.get("publisher", False):
-            members.update_one({"_id": admin["_id"]}, {"$set": {"publisher": True}})
-            _logger.info(
-                "restored publisher status on sole administrator %r",
-                admin.get("display_name"),
-            )
+    if (
+        members.count_documents({"administrator": True}) == 1
+        and (admin := members.find_one({"administrator": True})) is not None
+        and not admin.get("publisher", False)
+    ):
+        members.update_one({"_id": admin["_id"]}, {"$set": {"publisher": True}})
+        _logger.info(
+            "restored publisher status on sole administrator %r",
+            admin.get("display_name"),
+        )
 
 
 def backfill_author_snapshots(connection: Any) -> None:
@@ -211,8 +213,7 @@ def backfill_author_snapshots(connection: Any) -> None:
             {"author_active": {"$exists": False}}, {"$set": {"author_active": True}}
         )
     for name in authors:
-        member = members_by_name.get(name)
-        if member is None:
+        if (member := members_by_name.get(name)) is None:
             continue
         active = bool(member.get("active", False))
         publisher = bool(member.get("publisher", False))

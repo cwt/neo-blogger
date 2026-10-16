@@ -16,12 +16,9 @@ _logger = logging.getLogger(__name__)
 
 def _parse_tags(raw: str) -> list[str]:
     """Comma-separated field → trimmed, de-duplicated tag list (spec §5.1)."""
-    tags: list[str] = []
-    for entry in raw.split(","):
-        tag = entry.strip()
-        if tag and tag not in tags:
-            tags.append(tag)
-    return tags
+    return list(
+        dict.fromkeys(tag for entry in raw.split(",") if (tag := entry.strip()))
+    )
 
 
 def _now_iso() -> str:
