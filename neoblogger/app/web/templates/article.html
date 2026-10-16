@@ -1,7 +1,23 @@
 {% extends "base.html" %}
 {% block title %}{{ article.title }} · {{ site_title }}{% endblock %}
+{% block body_class %}{% if article.cover_url %}has-cover-hero{% endif %}{% endblock %}
 {% block hero_title %}{{ article.title }}{% endblock %}
 {% block hero_sub %}<p class="subtitle">{{ article.subtitle }}</p>{% endblock %}
+{% block breadcrumbs %}{% if not article.cover_url %}{% include "_breadcrumbs.html" %}{% endif %}{% endblock %}
+{% block hero %}
+{% if article.cover_url %}
+<section class="cover-hero">
+  <img class="cover-hero-img" src="{{ article.cover_url }}" alt="{{ article.title }}" fetchpriority="high">
+  <div class="cover-hero-inner container">
+    {% include "_breadcrumbs.html" %}
+    <div class="cover-hero-titles">
+      <h1>{{ article.title }}</h1>
+      <p class="subtitle">{{ article.subtitle }}</p>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
 {% block description %}{{ g.article.description }}{% endblock %}
 {% block author %}{{ g.article.author }}{% endblock %}
 {% block head %}
@@ -27,15 +43,6 @@
 <p class="flash flash-warning">This article is not visible to regular users (author is not an approved publisher).</p>
 {% endif %}
 <header class="article-header">
-  {% if article.cover_url %}
-  <figure class="theme-banner">
-    <img class="cover" src="{{ article.cover_url }}" alt="{{ article.title }}" width="1200" height="400" fetchpriority="high">
-    <figcaption class="theme-caption">
-      <h1>{{ article.title }}</h1>
-      <p class="subtitle">{{ article.subtitle }}</p>
-    </figcaption>
-  </figure>
-  {% endif %}
   <p class="meta">Posted by {{ article.author }} on <time datetime="{{ article.created }}">{{ article.created | readable_date }}</time></p>
   <p class="meta">{% for tag in article.tags %}<a class="tag" href="/tag/{{ tag }}">{{ tag }}</a> {% endfor %}</p>
 </header>

@@ -309,6 +309,61 @@ main table {
 .theme-caption h1 { margin-bottom: 0.25rem; }
 .theme-caption p { margin-bottom: 0; }
 .theme-credit { color: var(--pico-muted-color); }
+/* Full-bleed cover hero on article pages (§10, §16): the cover stretches to
+   the viewport top with the header, breadcrumbs, and titles overlaid.
+   Twin scrims keep every overlay readable on any cover: a top gradient
+   behind the header, a bottom gradient behind the titles. */
+body.has-cover-hero .site-header {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
+}
+body.has-cover-hero .site-header,
+body.has-cover-hero .site-header a,
+body.has-cover-hero .site-header .link-button {
+  color: #fff;
+}
+.cover-hero { position: relative; margin: 0; }
+.cover-hero-img {
+  display: block;
+  width: 100%;
+  height: clamp(430px, 74vh, 660px);
+  object-fit: cover;
+}
+.cover-hero-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-top: 4.5rem;
+  padding-bottom: 1.5rem;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.25) 38%,
+    transparent 55%
+  );
+}
+.cover-hero .breadcrumbs,
+.cover-hero .breadcrumbs a,
+.cover-hero .breadcrumbs span {
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+.cover-hero-titles h1,
+.cover-hero-titles p {
+  color: #fff;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+  margin-bottom: 0.25rem;
+}
+.cover-hero-titles p { margin-bottom: 0; }
+@media (max-width: 55.99rem) {
+  .cover-hero-img { height: clamp(330px, 58vh, 480px); }
+  .cover-hero-inner { padding-top: 4rem; }
+}
 /* Copy affordance overlays its own code block (spec §6). */
 div.highlight { position: relative; }
 /* Pygments' default palette is designed for a light backdrop; Pico's dark

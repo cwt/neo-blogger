@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="/static/fonts.css">
   <link rel="stylesheet" href="/static/custom.css">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 <a class="skip-link visually-hidden" href="#content">Skip to content</a>
 <header class="site-header">
   <nav class="container">
@@ -51,8 +51,9 @@
     </ul>
   </nav>
 </header>
+{% block hero %}{% endblock %}
 <main class="container" id="content">
-  {% if breadcrumbs %}<nav class="breadcrumbs" aria-label="Breadcrumb">{% for label, url in breadcrumbs %}{% if not loop.last %}<a href="{{ url }}">{{ label }}</a> »{% else %} <span aria-current="page">{{ label }}</span>{% endif %}{% endfor %}</nav>{% endif %}
+  {% block breadcrumbs %}{% include "_breadcrumbs.html" %}{% endblock %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}{% for category, message in messages %}<p class="flash flash-{{ category }}">{{ message }}</p>{% endfor %}{% endif %}
   {% endwith %}

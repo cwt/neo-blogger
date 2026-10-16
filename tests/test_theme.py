@@ -70,7 +70,7 @@ async def test_article_cover_wins_over_banner(app: Any) -> None:
     covered = await body_of(await client.get(f"/{covered_id}"))
     assert f"/images/{theme_id}.webp" not in covered
     assert "https://x.io/c.webp" in covered
-    assert "<figcaption" in covered
+    assert '<section class="cover-hero">' in covered
     assert covered.count("<h1>") == 1
     draft_id = await write_article(app, client, title="Bare", publish=False)
     bare = await body_of(await client.get(f"/{draft_id}"))

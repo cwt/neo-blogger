@@ -344,6 +344,27 @@ async def test_draft_deletion_is_author_only(app: Any) -> None:
     assert await context.articles.by_id(draft_id) is None
 
 
+async def test_cover_hero_overlays_header_and_titles(app: Any) -> None:
+    user_client = await signup(app, "user")
+    article_id = await write_article(
+        app, user_client, title="Heroic", publish=True, cover="https://x.io/c.webp"
+    )
+    rendered = await body_of(await user_client.get(f"/{article_id}"))
+    assert 'class="has-cover-hero"' in rendered
+    assert '<section class="cover-hero">' in rendered
+    assert rendered.count('aria-label="Breadcrumb"') == 1
+    assert rendered.count("<h1") == 1
+
+
+async def test_coverless_article_keeps_classic_hero(app: Any) -> None:
+    user_client = await signup(app, "user")
+    draft_id = await write_article(app, user_client, title="Bare", publish=False)
+    rendered = await body_of(await user_client.get(f"/{draft_id}"))
+    assert "has-cover-hero" not in rendered
+    assert "cover-hero" not in rendered
+    assert rendered.count("<h1") == 1
+
+
 async def test_profile_recent_published_capped_at_five(app: Any) -> None:
     user_client = await signup(app, "writer")
     # Write 6 published articles
