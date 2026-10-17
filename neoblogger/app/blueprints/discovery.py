@@ -48,10 +48,11 @@ def create_discovery_blueprint(context: AppContext) -> Blueprint:
             return redirect("/")
         page, per_page = page_parameters(context)
         name = member["display_name"]
+        author_path = f"/author/{quote(name, safe='')}"
         articles, total = await context.article_service.author_page(
             g.member, name, page, per_page
         )
-        g.breadcrumbs = [("Home", "/"), (name, f"/author/{name}")]
+        g.breadcrumbs = [("Home", "/"), (name, author_path)]
         return await render_template(
             "author.html",
             display_name=name,
@@ -59,7 +60,7 @@ def create_discovery_blueprint(context: AppContext) -> Blueprint:
             page=page,
             per_page=per_page,
             has_more=total > page * per_page,
-            base_url_path=f"/author/{quote(name, safe='')}",
+            base_url_path=author_path,
             query_suffix="",
         )
 

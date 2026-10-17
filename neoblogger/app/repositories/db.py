@@ -117,6 +117,8 @@ def ensure_indexes(
     )
     from neosqlite.gridfs import GridFSBucket
 
+    # Constructing the bucket materializes the fs_files/fs_chunks tables;
+    # no per-operation setup is needed afterwards (see ObjectRepository).
     GridFSBucket(connection)
     try:
         connection.fs.files.create_index("metadata.owner")
@@ -193,11 +195,13 @@ def backfill_author_snapshots(connection: Any) -> None:
     comments = connection.comments
     try:
         article_authors = set(articles.distinct("author"))
-    except Exception:
+    except Exception as error:
+        _logger.warning("backfill could not list article authors: %s", error)
         article_authors = set()
     try:
         comment_authors = set(comments.distinct("author"))
-    except Exception:
+    except Exception as error:
+        _logger.warning("backfill could not list comment authors: %s", error)
         comment_authors = set()
     authors = article_authors | comment_authors
     members_by_name: dict[str, Any] = {}

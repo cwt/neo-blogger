@@ -25,16 +25,19 @@ class ObjectRepository:
     def __init__(self, database: Database) -> None:
         self._database = database
         self._bucket_cached: GridFSBucket | None = None
-        self._bucket_conn_id: int | None = None
+        self._bucket_conn: Any | None = None
 
     def _bucket(self) -> GridFSBucket:
         """The bucket instance on the connection, cached per connection."""
         connection = self._database.connection
-        if self._bucket_cached is not None and self._bucket_conn_id == id(connection):
+        if self._bucket_cached is not None and self._bucket_conn is connection:
             return self._bucket_cached
         bucket = GridFSBucket(connection)
+        # Keep a strong reference to the connection itself (not its id()):
+        # id() values are recycled after garbage collection, so identity
+        # comparison is the only safe cache key across close/start cycles.
         self._bucket_cached = bucket
-        self._bucket_conn_id = id(connection)
+        self._bucket_conn = connection
         return bucket
 
     async def upload(

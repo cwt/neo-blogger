@@ -17,6 +17,4 @@ timeout = int(os.environ.get("NEOBLOGGER_TIMEOUT", "60"))
 accesslog = "-"
 errorlog = "-"
 loglevel = os.environ.get("NEOBLOGGER_LOG_LEVEL", "info")
-forwarded_allow_ips = os.environ.get(
-    "NEOBLOGGER_TRUSTED_PROXIES", "127.0.0.1,::1"
-)
+forwarded_allow_ips = os.environ.get("NEOBLOGGER_TRUSTED_PROXIES", "127.0.0.1,::1")

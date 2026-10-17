@@ -36,8 +36,10 @@ async def _verify_recovery_answer(
     """
     if not answer.strip():
         return "/recover", "Answer is required", "error"
-    if len(new_password) < 8:
+    if not new_password:
         return "/recover", "New password is required", "error"
+    if len(new_password) < 8:
+        return "/recover", "New password must be at least 8 characters", "error"
     try:
         ok = await context.accounts.recover(email, answer, new_password)
     except AccountDisabledError:

@@ -28,6 +28,11 @@ def _rfc3339(iso: str) -> str:
     return text
 
 
+def _one_line(text: object) -> str:
+    """Collapse a free-text field for line-oriented output (llms.txt)."""
+    return " ".join(str(text).split())
+
+
 def canonical_url_for(external_base: str, request_url_root: str, path: str) -> str:
     """Canonical URL from the configured base with request fallback (§16)."""
     base = external_base.strip().rstrip("/") or request_url_root.rstrip("/")
@@ -151,18 +156,17 @@ def create_seo_blueprint(context: AppContext) -> Blueprint:
             PUBLIC_FEED_FILTER, 1, _LLM_DOCS_SIZE
         )
         lines = [
-            f"# {site.site_title}",
+            f"# {_one_line(site.site_title)}",
             "",
-            site.site_description,
+            _one_line(site.site_description),
             "",
             "## Articles",
             "",
         ]
         for article in articles:
-            lines.append(
-                f"- [{article['title']}]({base}/{article['_id']}): "
-                f"{article.get('subtitle', '')}"
-            )
+            title = _one_line(article["title"])
+            subtitle = _one_line(article.get("subtitle", ""))
+            lines.append(f"- [{title}]({base}/{article['_id']}): {subtitle}")
         lines += [
             "",
             "## Feeds",

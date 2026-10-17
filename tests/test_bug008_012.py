@@ -257,6 +257,26 @@ async def test_recover_empty_password_flashes_required(app: Any) -> None:
     assert "New password is required" in flashed
 
 
+async def test_recover_short_password_names_minimum_length(app: Any) -> None:
+    await _signup(app.test_client(), "bea", "bea@example.com")
+    client = app.test_client()
+    page = await client.get("/recover")
+    token = csrf_token_from(await body_of(page))
+    response = await client.post(
+        "/recover",
+        form={
+            "email": "bea@example.com",
+            "answer": RECOVERY_ANSWER,
+            "new_password": "short",
+            "csrftoken": token,
+        },
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/recover"
+    flashed = await body_of(await client.get("/recover"))
+    assert "at least 8 characters" in flashed
+
+
 async def test_recover_lookups_do_not_consume_verify_budget(app: Any) -> None:
     await _signup(app.test_client(), "cara", "cara@example.com")
     client = app.test_client()
