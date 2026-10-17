@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Posts by {{ display_name }} · {{ site_title }}{% endblock %}
+{% block hero_title %}Posts by {{ display_name }}{% endblock %}
+{% block content %}
+<section class="feed">{% include "_feed_cards.html" %}</section>
+{% endblock %}
